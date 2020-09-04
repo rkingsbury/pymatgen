@@ -39,7 +39,7 @@ from pymatgen.core.composition import Composition
 from pymatgen.core.periodic_table import Element
 from pymatgen.core.structure import Structure
 from pymatgen.core.surface import get_symmetrically_equivalent_miller_indices
-from pymatgen.entries.computed_entries import ComputedEntry, ComputedStructureEntry
+from pymatgen.entries.computed_entries import ComputedEntry, ComputedStructureEntry, GibbsComputedStructureEntry
 from pymatgen.entries.exp_entries import ExpEntry
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from pymatgen.util.sequence import PBar, get_chunks
@@ -569,7 +569,7 @@ class MPRester:
             entries = sorted(entries, key=lambda entry: entry.data["e_above_hull"])
         return entries
 
-    def get_pourbaix_entries(self, chemsys, solid_compat="MaterialsProject2020Compatibility"):
+    def get_pourbaix_entries(self, chemsys, solid_compat="MaterialsProject2020Compatibility", use_gibbs=False):
         """
         A helper function to get all entries necessary to generate
         a pourbaix diagram from the rest interface.
@@ -579,9 +579,11 @@ class MPRester:
                 symbols separated by dashes, e.g., "Li-Fe-O" or List of element
                 symbols, e.g., ["Li", "Fe", "O"].
             solid_compat: Compatiblity scheme used to pre-process solid DFT energies prior to applying aqueous
-                energy adjustments. May be passed as a class (e.g. MaterialsProject2020Compatibility) or an instance
-                (e.g., MaterialsProject2020Compatibility()). If None, solid DFT energies are used as-is.
+                energy adjustments. May be passed as a class (e.g. MaterialsProject2020Compatibility) or an instance (e.g., MaterialsProject2020Compatibility()). If None, solid DFT energies are used as-is.
                 Default: MaterialsProject2020Compatibility
+            use_gibbs (bool): Whether to estimate room-temperature Gibbs free energies of solids via
+                a machine-learned model (see pymatgen.entries.computed_entries.GibbsComputedStructureEntry).
+                If False, Gibbs free energies are assumed equal to 0 K formation enthalpies. (Default: False).
         """
         # imports are not top-level due to expense
 
@@ -619,6 +621,7 @@ class MPRester:
             list(set([str(e) for e in ion_ref_elts] + ["O", "H"])),
             property_data=["e_above_hull"],
             compatible_only=False,
+            inc_structure="final",
         )
 
         # suppress the warning about supplying the required energies; they will be calculated from the
@@ -631,6 +634,17 @@ class MPRester:
             compat = MaterialsProjectAqueousCompatibility(solid_compat=self.solid_compat)
         ion_ref_entries = compat.process_entries(ion_ref_entries)
         ion_ref_pd = PhaseDiagram(ion_ref_entries)
+
+        # turn each ion_ref_entry into a GibbsComputedStructureEntry to get its room-temperature
+        # Gibbs free energy
+        if use_gibbs:
+            gibbs_ref_entries = []
+            for e in ion_ref_entries:
+                gibbs_ref_entries.append(
+                    GibbsComputedStructureEntry(e.structure, ion_ref_pd.get_form_energy(e), entry_id=e.entry_id)
+                )
+            ion_ref_entries = gibbs_ref_entries
+            ion_ref_pd = PhaseDiagram(ion_ref_entries)
 
         # position the ion energies relative to most stable reference state
         for n, i_d in enumerate(ion_data):
@@ -653,9 +667,12 @@ class MPRester:
             entry_elts = set(entry.composition.elements)
             # Ensure no OH chemsys or extraneous elements from ion references
             if not (entry_elts <= {Element("H"), Element("O")} or extra_elts.intersection(entry_elts)):
-                # Create new computed entry
-                form_e = ion_ref_pd.get_form_energy(entry)
-                new_entry = ComputedEntry(entry.composition, form_e, entry_id=entry.entry_id)
+                if not use_gibbs:
+                    # Create new computed entry
+                    form_e = ion_ref_pd.get_form_energy(entry)
+                    new_entry = ComputedEntry(entry.composition, form_e, entry_id=entry.entry_id)
+                else:
+                    new_entry = entry
                 pbx_entry = PourbaixEntry(new_entry)
                 pbx_entries.append(pbx_entry)
 
