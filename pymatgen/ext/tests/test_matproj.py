@@ -535,7 +535,7 @@ class MPResterTest(PymatgenTest):
         headers = self.rester.session.headers
         self.assertIn("user-agent", headers, msg="Include user-agent header by default")
         m = re.match(
-            r"pymatgen/(\d+)\.(\d+)\.(\d+) \(Python/(\d+)\.(\d)+\.(\d+) ([^\/]*)/([^\)]*)\)",
+            r"pymatgen/(\d+)\.(\d+)\.(\d+)\.?(\d+)? \(Python/(\d+)\.(\d)+\.(\d+) ([^\/]*)/([^\)]*)\)",
             headers["user-agent"],
         )
         self.assertIsNotNone(
