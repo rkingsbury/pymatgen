@@ -1201,7 +1201,8 @@ class MaterialsProjectAqueousCompatibility(Compatibility):
                 Default: None
         """
         self.solid_compat = None
-        if solid_compat and not isinstance(solid_compat, Compatibility):  # check whether solid_compat has been instantiated
+        # check whether solid_compat has been instantiated
+        if solid_compat and not isinstance(solid_compat, Compatibility):
             self.solid_compat = solid_compat()
 
         self.o2_energy = o2_energy
