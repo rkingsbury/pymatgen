@@ -1173,7 +1173,7 @@ class MaterialsProjectAqueousCompatibility(Compatibility):
     """
 
     def __init__(self,
-                 solid_compat: Optional[Union[Compatibility, str]] = MaterialsProject2020Compatibility,
+                 solid_compat: Optional[Compatibility] = MaterialsProject2020Compatibility,
                  o2_energy: Optional[float] = None,
                  h2o_energy: Optional[float] = None,
                  h2o_adjustments: Optional[float] = None):
