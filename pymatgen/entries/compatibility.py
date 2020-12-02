@@ -10,7 +10,7 @@ import abc
 import os
 import warnings
 from collections import defaultdict
-from typing import Optional, Sequence, Union, List
+from typing import Optional, Sequence, Union, List, Type
 
 import numpy as np
 from monty.design_patterns import cached_class
@@ -1173,7 +1173,7 @@ class MaterialsProjectAqueousCompatibility(Compatibility):
     """
 
     def __init__(self,
-                 solid_compat: Optional[Compatibility] = MaterialsProject2020Compatibility,
+                 solid_compat: Optional[Type[Compatibility]] = MaterialsProject2020Compatibility,
                  o2_energy: Optional[float] = None,
                  h2o_energy: Optional[float] = None,
                  h2o_adjustments: Optional[float] = None):
@@ -1200,10 +1200,9 @@ class MaterialsProjectAqueousCompatibility(Compatibility):
                 If not set, this value will be determined from any H2O entries passed to process_entries.
                 Default: None
         """
-        self.solid_compat = solid_compat
-        if self.solid_compat:
-            if not isinstance(self.solid_compat, Compatibility):  # check whether solid_compat has been instantiated
-                self.solid_compat = solid_compat()
+        self.solid_compat = None
+        if solid_compat and not isinstance(solid_compat, Compatibility):  # check whether solid_compat has been instantiated
+            self.solid_compat = solid_compat()
 
         self.o2_energy = o2_energy
         self.h2o_energy = h2o_energy
