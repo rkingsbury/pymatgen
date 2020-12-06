@@ -5,9 +5,10 @@ entries given to the CorrectionCalculator constructor.
 
 import warnings
 from collections import OrderedDict
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Tuple, Union, Optional
 
 import numpy as np
+import os
 import plotly.graph_objects as go
 import ruamel.yaml
 from monty.serialization import loadfn
@@ -442,14 +443,16 @@ class CorrectionCalculator:
 
         return fig
 
-    def make_yaml(self, name: str = "MP2020") -> None:
+    def make_yaml(self, name: str = "MP2020", dir: Optional[str] = None) -> None:
         """
         Creates the _name_Compatibility.yaml that stores corrections as well as _name_CompatibilityUncertainties.yaml
         for correction uncertainties.
 
         Args:
             name: str, alternate name for the created .yaml file.
-            Default: "MP2020"
+                Default: "MP2020"
+            dir: str, directory in which to save the file. Pass None (default) to 
+                save the file in the current working directory.
         """
 
         if len(self.corrections) == 0:
@@ -496,9 +499,12 @@ class CorrectionCalculator:
                 F:
             CompositionCorrections:
         """
-
         fn = name + "Compatibility.yaml"
-        file = open(fn, "w")
+        if dir:
+            path = os.path.join(dir, fn)
+        else:
+            path = fn
+        file = open(path, "w")
         yaml = ruamel.yaml.YAML()
         yaml.Representer.add_representer(OrderedDict, yaml.Representer.represent_dict)
         yaml.default_flow_style = False
