@@ -3,12 +3,12 @@ This module calculates corrections for the species listed below, fitted to the e
 entries given to the CorrectionCalculator constructor.
 """
 
+import os
 import warnings
 from collections import OrderedDict
 from typing import Dict, List, Tuple, Union, Optional
 
 import numpy as np
-import os
 import plotly.graph_objects as go
 import ruamel.yaml
 from monty.serialization import loadfn
@@ -387,12 +387,7 @@ class CorrectionCalculator:
         diffs_cpy = self.diffs.copy()
         num = len(labels_species)
 
-        if (
-            specie == "oxide"
-            or specie == "peroxide"
-            or specie == "superoxide"
-            or specie == "S"
-        ):
+        if specie in ('oxide', 'peroxide', 'superoxide', 'S'):
             if specie == "oxide":
                 compounds = self.oxides
             elif specie == "peroxide":
@@ -451,7 +446,7 @@ class CorrectionCalculator:
         Args:
             name: str, alternate name for the created .yaml file.
                 Default: "MP2020"
-            dir: str, directory in which to save the file. Pass None (default) to 
+            dir: str, directory in which to save the file. Pass None (default) to
                 save the file in the current working directory.
         """
 
@@ -482,9 +477,6 @@ class CorrectionCalculator:
             else:
                 comp_corr[specie] = self.corrections_dict[specie][0]
                 comp_corr_error[specie] = self.corrections_dict[specie][1]
-
-        comp_corr["ozonide"] = 0  # do i need this??
-        comp_corr_error["ozonide"] = 0
 
         outline = """\
         Name:
