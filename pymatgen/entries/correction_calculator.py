@@ -316,7 +316,7 @@ class CorrectionCalculator:
             )
 
         # set ozonide correction to 0 so that this species does not recieve a correction
-        # while other oxide types do 
+        # while other oxide types do
         self.corrections_dict["ozonide"] = (0, 0)
 
         return self.corrections_dict
