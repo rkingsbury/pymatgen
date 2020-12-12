@@ -314,6 +314,11 @@ class CorrectionCalculator:
                 round(self.corrections[i], 3),
                 round(self.corrections_std_error[i], 4),
             )
+
+        # set ozonide correction to 0 so that this species does not recieve a correction
+        # while other oxide types do 
+        self.corrections_dict["ozonide"] = (0, 0)
+
         return self.corrections_dict
 
     def graph_residual_error(self) -> go.Figure:
@@ -466,7 +471,7 @@ class CorrectionCalculator:
         o_error: "OrderedDict[str, float]" = OrderedDict()
         f_error: "OrderedDict[str, float]" = OrderedDict()
 
-        for specie in self.species:
+        for specie in self.species+["ozonide"]:
             if specie in ggaucorrection_species:
                 o[specie] = self.corrections_dict[specie][0]
                 f[specie] = self.corrections_dict[specie][0]
