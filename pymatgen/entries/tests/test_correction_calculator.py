@@ -30,6 +30,7 @@ class CorrectionCalculatorTest(unittest.TestCase):
             "W": (-4.57, 0.0181),
             "Mo": (-3.058, 0.0085),
             "H": (-0.178, 0.0013),
+            "ozonide": (0, 0),
         }
 
         self.warnings_allowed_corrections = {
@@ -55,6 +56,7 @@ class CorrectionCalculatorTest(unittest.TestCase):
             "W": (-5.263, 0.0173),
             "Mo": (-3.49, 0.008),
             "H": (-0.176, 0.0013),
+            "ozonide": (0, 0),
         }
 
         self.no_uncertainties_corrections = {
@@ -80,6 +82,7 @@ class CorrectionCalculatorTest(unittest.TestCase):
             "W": (-4.553, 0.1235),
             "Mo": (-3.032, 0.1118),
             "H": (-0.137, 0.0313),
+            "ozonide": (0, 0),
         }
 
         self.test_dir = os.path.join(
