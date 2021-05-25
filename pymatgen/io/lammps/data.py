@@ -1309,8 +1309,14 @@ class CombinedData(LammpsData):
         self.nums = list_of_numbers
         self.masses = pd.concat([mol.masses.copy() for mol in self.mols], ignore_index=True)
         self.masses.index += 1
-        all_ff_kws = SECTION_KEYWORDS["ff"] + SECTION_KEYWORDS["class2"]
-        ff_kws = [k for k in all_ff_kws if k in self.mols[0].force_field]
+        all_ff_kws = set(SECTION_KEYWORDS["ff"] + SECTION_KEYWORDS["class2"])
+        # this is necessary to make sure all ff kws are included in the Combined Data file,
+        # not just those from the first molecule
+        supplied_ff_kws = []
+        for m in self.mols:
+            supplied_ff_kws.extend(m.force_field.keys())
+        supplied_ff_kws = set(supplied_ff_kws)
+        ff_kws = supplied_ff_kws.intersection(all_ff_kws)
         self.force_field = {}
         for kw in ff_kws:
             self.force_field[kw] = pd.concat(
@@ -1343,7 +1349,7 @@ class CombinedData(LammpsData):
         count = {"Bonds": 0, "Angles": 0, "Dihedrals": 0, "Impropers": 0}
         for i, mol in enumerate(self.mols):
             for kw in SECTION_KEYWORDS["topology"]:
-                if kw in mol.topology:
+                if mol.topology and kw in mol.topology:
                     if kw not in self.topology:
                         self.topology[kw] = pd.DataFrame()
                     topo_df = mol.topology[kw].copy()
@@ -1357,7 +1363,7 @@ class CombinedData(LammpsData):
                     count[kw] += len(mol.force_field[kw[:-1] + " Coeffs"])
             atom_count += len(mol.atoms) * self.nums[i]
         for kw in SECTION_KEYWORDS["topology"]:
-            if kw in self.topology:
+            if self.topology and kw in self.topology:
                 self.topology[kw].index += 1
 
     @classmethod
