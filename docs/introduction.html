@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Introduction &mdash; pymatgen 2022.0.7 documentation</title>
+  <title>Introduction &mdash; pymatgen 2022.0.9 documentation</title>
   
 
   
@@ -71,7 +71,7 @@
             
             
               <div class="version">
-                2022.0.7
+                2022.0.9
               </div>
             
           
@@ -101,7 +101,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#matgenie-examples">Matgenie &amp; Examples</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#why-use-pymatgen">Why use pymatgen?</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#change-log">Change log</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#v2022-0-7">v2022.0.7</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#v2022-0-9">v2022.0.9</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#getting-pymatgen">Getting pymatgen</a></li>
@@ -307,17 +307,30 @@ other research groups.</p></li>
 </div>
 <div class="section" id="change-log">
 <h2>Change log<a class="headerlink" href="#change-log" title="Permalink to this headline">¶</a></h2>
-<div class="section" id="v2022-0-7">
-<h3>v2022.0.7<a class="headerlink" href="#v2022-0-7" title="Permalink to this headline">¶</a></h3>
+<div class="section" id="v2022-0-9">
+<h3>v2022.0.9<a class="headerlink" href="#v2022-0-9" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
-<li><p>Improved Gaussian Cube I/O (&#64;nwinner, #2121)</p></li>
-<li><p>Updated van der Waals radii (&#64;rkingsbury, #2122)</p></li>
-<li><p>Update <cite>MaterialsProject2020Compatibility</cite> for multi-anion systems (&#64;rkingsbury, #2128)</p></li>
-<li><p>Fixes and improvements to Q-Chem parsing (&#64;samblau, #2125)</p></li>
-<li><p>Bug fix for isseus with hard-coded path in <cite>MaterialsProject2020Compatibility</cite> (&#64;CompRhys, #2124)</p></li>
-<li><p>Bug fix for DOS serialization (&#64;zooks97, #2119)</p></li>
-<li><p>Bug fix for XDATCAR lattice parsing (&#64;nkeilbart, #2115)</p></li>
-<li><p>Documentation link fix (&#64;adam-kerrigan, #2127)</p></li>
+<li><p>Significant new functionality for handling interfaces between structures (&#64;shyamd, #2149)</p></li>
+<li><p>Add input/output for CREST (&#64;arepstein, #2020)</p></li>
+<li><p>Add RadialSiteDistortionTransformation (&#64;nwinner, #2108)</p></li>
+<li><p>Add Q-Chem NBO functionality (&#64;samblau, #2174)</p></li>
+<li><p>Change hkl annotation format in diffraction plots (&#64;flaviu-gostin, #2143)</p></li>
+<li><p>Add space group to print output of <cite>SymmetrizedStructure</cite> (&#64;CompRhys, #2139)</p></li>
+<li><p>Better error handling in QCOutput (&#64;rkingsbury, #2147, #2165, #2135)</p></li>
+<li><p>Add progress bar for applying compatibility scheme (&#64;CompRhys, #2136)</p></li>
+<li><p>Allow combining data with multiple molecule IDs in LAMMPS (&#64;htz1992213, #2157)</p></li>
+<li><p>Update EDIFF in DFPT input set to be consistent with atomate (&#64;utf, #2172)</p></li>
+<li><p>Change names of high-symmetry paths (&#64;munrojm, #2144)</p></li>
+<li><p>Change default for filter_solids argument of PourbaixDiagram (&#64;rkingsbury, #2177)</p></li>
+<li><p>Fix to improve precision in <cite>FermiDos</cite>, NOTE: this can result in significant changes in some instances (&#64;nwinner, #2109)</p></li>
+<li><p>Fix for handling of Exceptions (&#64;kmu, #2150)</p></li>
+<li><p>Fix for PourbaixEntry (&#64;JosephMontoya-TRI, #2148)</p></li>
+<li><p>Fix for loading of settings from file when environment variables also set (&#64;ardunn, #2164)</p></li>
+<li><p>Fix equation for calculation of k-spacing in SCAN sets, NOTE: this now results in a lower k-point density (&#64;ab5424, #2163)</p></li>
+<li><p>Fix for parsing of VASP vasprun.xml when ALGO=CHI (&#64;KazMorita, #2171)</p></li>
+<li><p>Documentation update for MP2020 corrections scheme (&#64;rkingsbury, #2141)</p></li>
+<li><p>Documentation update for SCAN sets (&#64;janosh, #2140)</p></li>
+<li><p>Documentation update for using CifWriter (&#64;755452800, #2156)</p></li>
 </ul>
 <p><a class="reference internal" href="change_log.html"><span class="doc">Older versions</span></a></p>
 </div>

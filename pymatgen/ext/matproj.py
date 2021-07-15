@@ -23,18 +23,11 @@ from collections import defaultdict
 from enum import Enum, unique
 from time import sleep
 
-try:
-    import ruamel.yaml as yaml
-except ImportError:
-    try:
-        import ruamel_yaml as yaml  # type: ignore  # noqa
-    except ImportError:
-        import yaml  # type: ignore # noqa
 import requests
 from monty.json import MontyDecoder, MontyEncoder
 from monty.serialization import dumpfn
 
-from pymatgen.core import SETTINGS, SETTINGS_FILE
+from pymatgen.core import SETTINGS, SETTINGS_FILE, yaml
 from pymatgen.core.composition import Composition
 from pymatgen.core.periodic_table import Element
 from pymatgen.core.structure import Structure
@@ -198,6 +191,8 @@ class MPRester:
                     d = yaml.safe_load(f)
             except IOError:
                 d = {}
+
+            d = d if d else {}
 
             if "MAPI_DB_VERSION" not in d:
                 d["MAPI_DB_VERSION"] = {"LOG": {}, "LAST_ACCESSED": None}
@@ -564,7 +559,10 @@ class MPRester:
         if compatible_only:
             from pymatgen.entries.compatibility import MaterialsProject2020Compatibility
 
-            entries = MaterialsProject2020Compatibility().process_entries(entries)
+            # suppress the warning about missing oxidation states
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message="Failed to guess oxidation states.*")
+                entries = MaterialsProject2020Compatibility().process_entries(entries, clean=True)
         if sort_by_e_above_hull:
             entries = sorted(entries, key=lambda entry: entry.data["e_above_hull"])
         return entries
@@ -601,10 +599,13 @@ class MPRester:
             self.solid_compat = MaterialsProjectCompatibility()
         elif solid_compat == "MaterialsProject2020Compatibility":
             self.solid_compat = MaterialsProject2020Compatibility()
-        elif solid_compat and not isinstance(solid_compat, Compatibility):
-            self.solid_compat = solid_compat()
-        else:
+        elif isinstance(solid_compat, Compatibility):
             self.solid_compat = solid_compat
+        else:
+            raise ValueError(
+                "Solid compatibility can only be 'MaterialsProjectCompatibility', "
+                "'MaterialsProject2020Compatibility', or an instance of a Compatability class"
+            )
 
         pbx_entries = []
 
@@ -632,7 +633,10 @@ class MPRester:
                 message="You did not provide the required O2 and H2O energies.",
             )
             compat = MaterialsProjectAqueousCompatibility(solid_compat=self.solid_compat)
-        ion_ref_entries = compat.process_entries(ion_ref_entries)
+        # suppress the warning about missing oxidation states
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="Failed to guess oxidation states.*")
+            ion_ref_entries = compat.process_entries(ion_ref_entries)
         ion_ref_pd = PhaseDiagram(ion_ref_entries)
 
         # turn each ion_ref_entry into a GibbsComputedStructureEntry to get its room-temperature
@@ -1028,7 +1032,7 @@ class MPRester:
                     break
                 except MPRestError as e:
                     # pylint: disable=E1101
-                    match = re.search(r"error status code (\d+)", e.message)
+                    match = re.search(r"error status code (\d+)", str(e))
                     if match:
                         if not match.group(1).startswith("5"):
                             raise e

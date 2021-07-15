@@ -891,12 +891,11 @@ class MPScanRelaxSet(DictSet):
     (SCAN) metaGGA density functional.
 
     Notes:
-        1. This functional is currently not officially supported in VASP. Source
-        code may be obtained by contacting the authors of the manuscript in the
-        References section. The original SCAN functional, available from VASP 5.4.3
-        onwards, maybe used instead by passing `user_incar_settings={"METAGGA": "SCAN"}`
-        when instantiating this InputSet. r2SCAN and SCAN are expected to yield
-        very similar results.
+        1. This functional is officially supported in VASP 6.0.0 and above. On older version,
+        source code may be obtained by contacting the authors of the referenced manuscript.
+        The original SCAN functional, available from VASP 5.4.3 onwards, maybe used instead
+        by passing `user_incar_settings={"METAGGA": "SCAN"}` when instantiating this InputSet.
+        r2SCAN and SCAN are expected to yield very similar results.
 
         2. Meta-GGA calculations require POTCAR files that include
         information on the kinetic energy density of the core-electrons,
@@ -960,11 +959,13 @@ class MPScanRelaxSet(DictSet):
             updates["SIGMA"] = 0.2
             updates["ISMEAR"] = 2
         else:
-            rmin = 25.22 - 1.87 * bandgap  # Eq. 25
+            rmin = 25.22 - 2.87 * bandgap  # Eq. 25
             kspacing = 2 * np.pi * 1.0265 / (rmin - 1.0183)  # Eq. 29
             # cap the KSPACING at a max of 0.44, per internal benchmarking
-            kspacing = min(0.44, kspacing)
-            updates["KSPACING"] = kspacing
+            if 0.22 < kspacing < 0.44:
+                updates["KSPACING"] = kspacing
+            else:
+                updates["KSPACING"] = 0.44
             updates["ISMEAR"] = -5
             updates["SIGMA"] = 0.05
 
@@ -1112,6 +1113,9 @@ class MPStaticSet(MPRelaxSet):
             # to output ionic.
             incar.pop("NSW", None)
             incar.pop("NPAR", None)
+
+            # tighter ediff for DFPT
+            incar["EDIFF"] = 1e-5
 
         if self.lcalcpol:
             incar["LCALCPOL"] = True

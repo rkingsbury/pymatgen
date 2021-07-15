@@ -24,19 +24,13 @@ from collections import OrderedDict
 from io import StringIO
 from pathlib import Path
 
-try:
-    import ruamel.yaml as yaml
-except ImportError:
-    try:
-        import ruamel_yaml as yaml  # type: ignore  # noqa
-    except ImportError:
-        import yaml  # type: ignore # noqa
 import numpy as np
 import pandas as pd
 from monty.dev import deprecated
 from monty.json import MSONable
 from monty.serialization import loadfn
 
+from pymatgen.core import yaml
 from pymatgen.core.periodic_table import Element
 from pymatgen.core.lattice import Lattice
 from pymatgen.core.structure import Molecule, Structure
@@ -45,10 +39,10 @@ from pymatgen.util.io_utils import clean_lines
 
 __author__ = "Kiran Mathew, Zhi Deng, Tingzheng Hou"
 __copyright__ = "Copyright 2018, The Materials Virtual Lab"
-__version__ = "1.0"
-__maintainer__ = "Zhi Deng"
-__email__ = "z4deng@eng.ucsd.edu"
-__date__ = "Aug 1, 2018"
+__version__ = "2.0"
+__maintainer__ = "Tingzheng Hou"
+__email__ = "tingzheng_hou@berkeley.edu"
+__date__ = "May 29, 2021"
 
 MODULE_DIR = Path(__file__).resolve().parent
 
@@ -344,7 +338,7 @@ class LammpsData(MSONable):
             site_properties=site_properties,
         )
 
-    def get_string(self, distance=6, velocity=8, charge=4):
+    def get_string(self, distance=6, velocity=8, charge=4, hybrid=True):
         """
         Returns the string representation of LammpsData, essentially
         the string to be written to a file. Support hybrid style
@@ -358,6 +352,11 @@ class LammpsData(MSONable):
                 velocities. Default to 8.
             charge (int): No. of significant figures to output for
                 charges. Default to 3.
+            hybrid (bool): Whether to write hybrid coeffs types.
+                Default to True. If the data object has no hybrid
+                coeffs types and has large coeffs section, one may
+                use False to speedup the process. Otherwise the
+                default is recommended.
 
         Returns:
             String representation
@@ -441,12 +440,16 @@ class LammpsData(MSONable):
         parts = []
         for k, v in body_dict.items():
             index = k != "PairIJ Coeffs"
-            if k in [
-                "Bond Coeffs",
-                "Angle Coeffs",
-                "Dihedral Coeffs",
-                "Improper Coeffs",
-            ]:
+            if (
+                k
+                in [
+                    "Bond Coeffs",
+                    "Angle Coeffs",
+                    "Dihedral Coeffs",
+                    "Improper Coeffs",
+                ]
+                and hybrid
+            ):
                 listofdf = np.array_split(v, len(v.index))
                 df_string = ""
                 for i, df in enumerate(listofdf):
@@ -711,14 +714,14 @@ class LammpsData(MSONable):
                 df = pd.read_csv(sio, header=None, comment="#", delim_whitespace=True)
                 if kw == "PairIJ Coeffs":
                     names = ["id1", "id2"] + ["coeff%d" % i for i in range(1, df.shape[1] - 1)]
-                    df.index.name = None
+                    df.index.name = None  # pylint: disable=E1101
                 elif kw in SECTION_HEADERS:
                     names = ["id"] + SECTION_HEADERS[kw]
                 elif kw == "Atoms":
                     names = ["id"] + ATOMS_HEADERS[atom_style]
-                    if df.shape[1] == len(names):
+                    if df.shape[1] == len(names):  # pylint: disable=E1101
                         pass
-                    elif df.shape[1] == len(names) + 3:
+                    elif df.shape[1] == len(names) + 3:  # pylint: disable=E1101
                         names += ["nx", "ny", "nz"]
                     else:
                         raise ValueError("Format in Atoms section inconsistent" " with atom_style %s" % atom_style)
@@ -1231,9 +1234,8 @@ class ForceField(MSONable):
             "nonbond_coeffs": self.nonbond_coeffs,
             "topo_coeffs": self.topo_coeffs,
         }
-        yml = yaml.YAML(typ="safe")
         with open(filename, "w") as f:
-            yml.dump(d, f)
+            yaml.dump(d, f)
 
     @classmethod
     def from_file(cls, filename):
@@ -1244,9 +1246,8 @@ class ForceField(MSONable):
             filename (str): Filename.
 
         """
-        yml = yaml.YAML(typ="safe")
         with open(filename, "r") as f:
-            d = yml.load(f)
+            d = yaml.load(f)
         return cls.from_dict(d)
 
     @classmethod
@@ -1281,9 +1282,12 @@ class CombinedData(LammpsData):
     ):
         """
         Args:
-            list_of_molecules: a list of LammpsData of a single cluster.
-            list_of_names: a list of name for each cluster.
-            list_of_numbers: a list of Integer for counts of each molecule
+            list_of_molecules: A list of LammpsData objects of a chemical cluster.
+                 Each LammpsData object (cluster) may contain one or more molecule ID.
+            list_of_names: A list of name (string) for each cluster. The characters in each name are
+                restricted to word characters ([a-zA-Z0-9_]). If names with any non-word characters
+                are passed in, the special characters will be substituted by '_'.
+            list_of_numbers: A list of Integer for counts of each molecule
                 coordinates (pandas.DataFrame): DataFrame with with four
                 columns ["atom", "x", "y", "z"] for coordinates of atoms.
             atom_style (str): Output atom_style. Default to "full".
@@ -1295,13 +1299,16 @@ class CombinedData(LammpsData):
         self.box = LammpsBox(np.array(3 * [[min_xyz - 0.5, max_xyz + 0.5]]))
         self.atom_style = atom_style
         self.n = sum(list_of_numbers)
-        self.names = list_of_names
+        self.names = list()
+        for name in list_of_names:
+            self.names.append("_".join(re.findall(r"\w+", name)))
         self.mols = list_of_molecules
         self.nums = list_of_numbers
         self.masses = pd.concat([mol.masses.copy() for mol in self.mols], ignore_index=True)
         self.masses.index += 1
         all_ff_kws = SECTION_KEYWORDS["ff"] + SECTION_KEYWORDS["class2"]
-        ff_kws = [k for k in all_ff_kws if k in self.mols[0].force_field]
+        appeared_kws = {k for mol in self.mols if mol.force_field is not None for k in mol.force_field}
+        ff_kws = [k for k in all_ff_kws if k in appeared_kws]
         self.force_field = {}
         for kw in ff_kws:
             self.force_field[kw] = pd.concat(
@@ -1309,19 +1316,24 @@ class CombinedData(LammpsData):
                 ignore_index=True,
             )
             self.force_field[kw].index += 1
+        if not bool(self.force_field):
+            self.force_field = None
 
         self.atoms = pd.DataFrame()
         mol_count = 0
         type_count = 0
+        self.mols_per_data = list()
         for i, mol in enumerate(self.mols):
             atoms_df = mol.atoms.copy()
             atoms_df["molecule-ID"] += mol_count
             atoms_df["type"] += type_count
+            mols_in_data = len(atoms_df["molecule-ID"].unique())
+            self.mols_per_data.append(mols_in_data)
             for j in range(self.nums[i]):
                 self.atoms = self.atoms.append(atoms_df, ignore_index=True)
-                atoms_df["molecule-ID"] += 1
+                atoms_df["molecule-ID"] += mols_in_data
             type_count += len(mol.masses)
-            mol_count += self.nums[i]
+            mol_count += self.nums[i] * mols_in_data
         self.atoms.index += 1
         assert len(self.atoms) == len(coordinates), "Wrong number of coordinates."
         self.atoms.update(coordinates)
@@ -1334,7 +1346,7 @@ class CombinedData(LammpsData):
         count = {"Bonds": 0, "Angles": 0, "Dihedrals": 0, "Impropers": 0}
         for i, mol in enumerate(self.mols):
             for kw in SECTION_KEYWORDS["topology"]:
-                if kw in mol.topology:
+                if bool(mol.topology) and kw in mol.topology:
                     if kw not in self.topology:
                         self.topology[kw] = pd.DataFrame()
                     topo_df = mol.topology[kw].copy()
@@ -1350,6 +1362,8 @@ class CombinedData(LammpsData):
         for kw in SECTION_KEYWORDS["topology"]:
             if kw in self.topology:
                 self.topology[kw].index += 1
+        if not bool(self.topology):
+            self.topology = None
 
     @classmethod
     def parse_xyz(cls, filename):
@@ -1383,7 +1397,7 @@ class CombinedData(LammpsData):
             coordinate_file (str): The filename of xyz coordinates.
             list_of_numbers (list): A list of numbers specifying counts for each
                 clusters parsed from files.
-            filenames (str): A series of filenames in string format.
+            filenames (str): A series of LAMMPS data filenames in string format.
         """
         names = []
         mols = []
@@ -1405,7 +1419,8 @@ class CombinedData(LammpsData):
         The input LammpsData objects are used non-destructively.
 
         Args:
-            mols: a list of LammpsData of a single cluster.
+            mols: a list of LammpsData of a chemical cluster.Each LammpsData object (cluster)
+                may contain one or more molecule ID.
             names: a list of name for each cluster.
             list_of_numbers: a list of Integer for counts of each molecule
                 coordinates (pandas.DataFrame): DataFrame with with four
@@ -1425,7 +1440,11 @@ class CombinedData(LammpsData):
     def get_string(self, distance=6, velocity=8, charge=4):
         """
         Returns the string representation of CombinedData, essentially
-        the string to be written to a file. Combination info is included.
+        the string to be written to a file. Combination info is included
+        as a comment. For single molecule ID data, the info format is:
+            num name
+        For data with multiple molecule ID, the format is:
+            num(mols_per_data) name
 
         Args:
             distance (int): No. of significant figures to output for
@@ -1440,9 +1459,27 @@ class CombinedData(LammpsData):
             String representation
         """
         lines = LammpsData.get_string(self, distance, velocity, charge).splitlines()
-        info = "# " + " + ".join(str(a) + " " + b for a, b in zip(self.nums, self.names))
+        info = "# " + " + ".join(
+            (str(a) + " " + b) if c == 1 else (str(a) + "(" + str(c) + ") " + b)
+            for a, b, c in zip(self.nums, self.names, self.mols_per_data)
+        )
         lines.insert(1, info)
         return "\n".join(lines)
+
+    def as_lammpsdata(self):
+        """
+        Convert a CombinedData object to a LammpsData object.
+
+        """
+        items = dict()
+        items["box"] = self.box
+        items["masses"] = self.masses
+        items["atoms"] = self.atoms
+        items["atom_style"] = self.atom_style
+        items["velocities"] = self.velocities
+        items["force_field"] = self.force_field
+        items["topology"] = self.topology
+        return LammpsData(**items)
 
 
 @deprecated(
