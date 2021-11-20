@@ -79,7 +79,7 @@ class PackmolSet(InputSet):
         except subprocess.CalledProcessError as e:
             raise ValueError("Packmol failed with errorcode {} and stderr: {}".format(e.returncode, e.stderr)) from e
         else:
-            with open(self.stdoutfile, "w") as out:
+            with open(Path(path, self.stdoutfile), "w") as out:
                 out.write(p.stdout.decode())
 
     @classmethod
