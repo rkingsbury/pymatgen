@@ -28,7 +28,7 @@ from monty.os.path import which
 from pymatgen.core import Molecule
 from pymatgen.io.core import InputGenerator, InputSet
 
-__author__ = "Tingzheng Hou, Ryan Kingsbury"
+__author__ = "Tingzheng Hou, Ryan Kingsbury, Orion Cohen"
 __version__ = "1.0"
 __maintainer__ = "Ryan Kingsbury"
 __email__ = "RKingsbury@lbl.gov"
@@ -50,6 +50,7 @@ class PackmolSet(InputSet):
             ValueError if packmol does not succeed in packing the box.
             TimeoutExpiredError if packmold does not finish within the timeout.
         """
+        wd = os.getcwd()
         if not which("packmol"):
             raise RuntimeError(
                 "Running a PackmolSet requires the executable 'packmol' to be in "
@@ -84,6 +85,8 @@ class PackmolSet(InputSet):
         else:
             with open(self.stdoutfile, "w") as out:
                 out.write(p.stdout.decode())
+        finally:
+            os.chdir(wd)
 
     @classmethod
     def from_directory(cls, directory: Union[str, Path]):
