@@ -14,3 +14,4 @@ jarvis-tools==2020.7.14
 galore==0.6.1
 parmed==3.4.3
 rdkit-pypi
+openmm
