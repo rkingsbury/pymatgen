@@ -15,3 +15,4 @@ galore==0.6.1
 parmed==3.4.3
 openmm
 rdkit-pypi
+openff-toolkit
