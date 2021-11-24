@@ -53,6 +53,7 @@ jobs:
         shell: bash -l {0}
         run: |
           conda install -c conda-forge openff-toolkit
+          conda install -c conda-forge openmm
       - name: Install dependencies
         shell: bash -l {0}
         run: |
