@@ -52,9 +52,7 @@ jobs:
       - name: Install OpenMM dependencies
         shell: bash -l {0}
         run: |
-          conda install -c conda-forge parmed
-          conda install -c conda-forge openmm
-          conda install -c conda-forge rdkit
+          conda install -c conda-forge openff-toolkit
       - name: Install dependencies
         shell: bash -l {0}
         run: |
