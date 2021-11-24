@@ -12,3 +12,7 @@ hiphive==0.6
 seekpath==1.9.4
 jarvis-tools==2020.7.14
 galore==0.6.1
+parmed==3.4.3
+openmm==7.6.0
+rdkit==2020.09.2
+openbabel==3.1.1
