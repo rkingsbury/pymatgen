@@ -11,7 +11,7 @@ box, which returns a PackmolSet object.
 For the run() method to work, you need to install the packmol package
 See http://m3g.iqm.unicamp.br/packmol or
 http://leandro.iqm.unicamp.br/m3g/packmol/home.shtml
-for download and setup instructions. Note that packmol versions prior to 20.3.0 
+for download and setup instructions. Note that packmol versions prior to 20.3.0
 do not support paths with spaces.
 After installation, you may need to manually add the path of the packmol
 executable to the PATH environment variable.
