@@ -61,6 +61,7 @@ class PackmolSet(InputSet):
             )
         try:
             os.chdir(path)
+            print(path, self.inputfile)
             p = subprocess.run(
                 "packmol < '{}'".format(self.inputfile),
                 check=True,
