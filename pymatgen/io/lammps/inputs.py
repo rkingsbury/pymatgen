@@ -1,4 +1,3 @@
-# coding: utf-8
 # Copyright (c) Pymatgen Development Team.
 # Distributed under the terms of the MIT License.
 
@@ -49,7 +48,7 @@ class CombinedData(InputFile):
 class LammpsRun(MSONable):
     """
     Examples for various simple LAMMPS runs with given simulation box,
-    force field and a few more settings. Experience LAMMPS users should
+    force field and a few more settings. Experienced LAMMPS users should
     consider using write_lammps_inputs method with more sophisticated
     templates.
 
@@ -272,4 +271,4 @@ def write_lammps_inputs(
         elif isinstance(data, str) and os.path.exists(data):
             shutil.copyfile(data, os.path.join(output_dir, data_filename))
         else:
-            warnings.warn("No data file supplied. Skip writing %s." % data_filename)
+            warnings.warn(f"No data file supplied. Skip writing {data_filename}.")

@@ -1,4 +1,3 @@
-# coding: utf-8
 # Copyright (c) Pymatgen Development Team.
 # Distributed under the terms of the MIT License.
 
@@ -44,7 +43,6 @@ class SymmetryGroup(Sequence, Stringify, metaclass=ABCMeta):
         """
         :return: List of symmetry operations
         """
-        pass
 
     def __contains__(self, item):
         for i in self.symmetry_ops:
@@ -248,7 +246,7 @@ class SpaceGroup(SymmetryGroup):
                 break
         else:
             if int_symbol not in SpaceGroup.sgencoding:
-                raise ValueError("Bad international symbol %s" % int_symbol)
+                raise ValueError(f"Bad international symbol {int_symbol}")
 
             data = SpaceGroup.sgencoding[int_symbol]
 

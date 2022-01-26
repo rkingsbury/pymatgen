@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# coding: utf-8
 # Copyright (c) Pymatgen Development Team.
 # Distributed under the terms of the MIT License.
 
@@ -53,7 +52,7 @@ def diff_incar(args):
 
     def format_lists(v):
         if isinstance(v, (tuple, list)):
-            return " ".join(["%d*%.2f" % (len(tuple(group)), i) for (i, group) in itertools.groupby(v)])
+            return " ".join([f"{len(tuple(group))}*{i:.2f}" for (i, group) in itertools.groupby(v)])
         return v
 
     d = incar1.diff(incar2)

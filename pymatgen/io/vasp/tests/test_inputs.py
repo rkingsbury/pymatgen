@@ -1,4 +1,3 @@
-# coding: utf-8
 # Copyright (c) Pymatgen Development Team.
 # Distributed under the terms of the MIT License.
 
@@ -292,7 +291,7 @@ direct
         self.assertRaises(ValueError, setattr, poscar, "velocities", [[0, 0, 0]])
         poscar.selective_dynamics = np.array([[True, False, False]] * 24)
         ans = """
-        LiFePO4
+        Fe4P4O16
 1.0
 10.411767 0.000000 0.000000
 0.000000 6.067172 0.000000
@@ -784,6 +783,9 @@ Cartesian
         kpoints = Kpoints.automatic_density_by_vol(poscar.structure, 1000)
         self.assertEqual(kpoints.kpts, [[6, 10, 13]])
         self.assertEqual(kpoints.style, Kpoints.supported_modes.Gamma)
+        kpoints = Kpoints.automatic_density_by_lengths(poscar.structure, [50, 50, 1], True)
+        self.assertEqual(kpoints.kpts, [[5, 9, 1]])
+        self.assertEqual(kpoints.style, Kpoints.supported_modes.Gamma)
 
         s = poscar.structure
         s.make_supercell(3)
@@ -1052,7 +1054,7 @@ class VaspInputTest(PymatgenTest):
         # To add some test.
         with ScratchDir(".") as d:
             self.vinput.run_vasp(d, vasp_cmd=["cat", "INCAR"])
-            with open(os.path.join(d, "vasp.out"), "r") as f:
+            with open(os.path.join(d, "vasp.out")) as f:
                 output = f.read()
                 self.assertEqual(output.split("\n")[0], "ALGO = Damped")
 

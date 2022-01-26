@@ -1,4 +1,3 @@
-# coding: utf-8
 # Copyright (c) Pymatgen Development Team.
 # Distributed under the terms of the MIT License.
 
@@ -8,8 +7,8 @@ import unittest
 import warnings
 from pathlib import Path
 
-import pytest  # type: ignore
 import numpy as np
+import pytest  # type: ignore
 from monty.os.path import which
 
 from pymatgen.core.composition import Composition
@@ -407,8 +406,6 @@ class IStructureTest(PymatgenTest):
         coords = [[0, 0, 0], [0.3, 0.35, 0.45]]
         s = Structure(Lattice.from_parameters(1, 2, 3, 50, 66, 88), ["Ag"] * 2, coords)
 
-        a = [[-1, 2, -3], [3, 2, -4], [1, 0, -1]]
-        b = [[4, 0, 0], [1, 1, 0], [3, 0, 1]]
         c = [[2, 0, 0], [1, 3, 0], [1, 1, 1]]
 
         for sc_matrix in [c]:
@@ -603,8 +600,8 @@ Direct
                 self.assertEqual(len(nn_traditional[i]), len(nn_cell_lists[i]))
                 self.assertTrue(
                     np.linalg.norm(
-                        np.array(sorted([j[1] for j in nn_traditional[i]]))
-                        - np.array(sorted([j[1] for j in nn_cell_lists[i]]))
+                        np.array(sorted(j[1] for j in nn_traditional[i]))
+                        - np.array(sorted(j[1] for j in nn_cell_lists[i]))
                     )
                     < 1e-3
                 )
@@ -1195,7 +1192,7 @@ class StructureTest(PymatgenTest):
             "Initial Structure not defaulting to behavior in SiteCollection",
         )
         s = Structure.from_sites(s, charge=1)
-        self.assertEqual(s.charge, 1, "Overall charge not being stored in seperate property")
+        self.assertEqual(s.charge, 1, "Overall charge not being stored in separate property")
         s = s.copy()
         self.assertEqual(s.charge, 1, "Overall charge not being copied properly with no sanitization")
         s = s.copy(sanitize=True)
