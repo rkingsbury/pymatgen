@@ -819,19 +819,19 @@ class IStructure(SiteCollection, MSONable):
 
         try:
             i = int(sg)
-            sgp = SpaceGroup.from_int_number(i)
+            spg = SpaceGroup.from_int_number(i)
         except ValueError:
-            sgp = SpaceGroup(sg)
+            spg = SpaceGroup(sg)
 
         if isinstance(lattice, Lattice):
             latt = lattice
         else:
             latt = Lattice(lattice)
 
-        if not sgp.is_compatible(latt):
+        if not spg.is_compatible(latt):
             raise ValueError(
-                "Supplied lattice with parameters %s is incompatible with "
-                "supplied spacegroup %s!" % (latt.parameters, sgp.symbol)
+                f"Supplied lattice with parameters {latt.parameters} is incompatible with supplied spacegroup "
+                f"{spg.symbol}!"
             )
 
         if len(species) != len(coords):
@@ -847,9 +847,9 @@ class IStructure(SiteCollection, MSONable):
         all_coords = []  # type: List[List[float]]
         all_site_properties = collections.defaultdict(list)  # type: Dict[str, List]
         for i, (sp, c) in enumerate(zip(species, frac_coords)):
-            cc = sgp.get_orbit(c, tol=tol)
+            cc = spg.get_orbit(c, tol=tol)
             all_sp.extend([sp] * len(cc))
-            all_coords.extend(cc)
+            all_coords.extend(cc)  # type: ignore
             for k, v in props.items():
                 all_site_properties[k].extend([v[i]] * len(cc))
 
@@ -858,7 +858,7 @@ class IStructure(SiteCollection, MSONable):
     @classmethod
     def from_magnetic_spacegroup(
         cls,
-        msg: str | MagneticSpaceGroup,  # type: ignore  # noqa: F821
+        msg: str | MagneticSpaceGroup,  # type: ignore
         lattice: list | np.ndarray | Lattice,
         species: Sequence[str | Element | Species | DummySpecies | Composition],
         coords: Sequence[Sequence[float]],
@@ -925,8 +925,8 @@ class IStructure(SiteCollection, MSONable):
 
         if not msg.is_compatible(latt):
             raise ValueError(
-                "Supplied lattice with parameters %s is incompatible with "
-                "supplied spacegroup %s!" % (latt.parameters, msg.sg_symbol)
+                f"Supplied lattice with parameters {latt.parameters} is incompatible with supplied spacegroup "
+                f"{msg.sg_symbol}!"
             )
 
         if len(species) != len(coords):
@@ -1665,7 +1665,7 @@ class IStructure(SiteCollection, MSONable):
             return self.__class__(  # type: ignore
                 reduced_latt,
                 self.species_and_occu,
-                self.cart_coords,
+                self.cart_coords,  # type: ignore
                 coords_are_cartesian=True,
                 to_unit_cell=True,
                 site_properties=self.site_properties,
@@ -1793,20 +1793,15 @@ class IStructure(SiteCollection, MSONable):
                     unmapped_start_ind.append(i)
 
             if len(unmapped_start_ind) > 1:
-                raise ValueError(
-                    "Unable to reliably match structures "
-                    "with auto_sort_tol = %f. unmapped indices "
-                    "= %s" % (autosort_tol, unmapped_start_ind)
-                )
+                raise ValueError(f"Unable to reliably match structures with {autosort_tol = }, {unmapped_start_ind = }")
 
             sorted_end_coords = np.zeros_like(end_coords)
             matched = []
             for i, j in site_mappings.items():
                 if len(j) > 1:
                     raise ValueError(
-                        "Unable to reliably match structures "
-                        "with auto_sort_tol = %f. More than one "
-                        "site match!" % autosort_tol
+                        f"Unable to reliably match structures with auto_sort_tol = {autosort_tol}. "
+                        "More than one site match!"
                     )
                 sorted_end_coords[i] = end_coords[j[0]]
                 matched.append(j[0])
@@ -2065,10 +2060,12 @@ class IStructure(SiteCollection, MSONable):
                     # satisfy the restriction condition
                     p_latt, s_latt = p.lattice, self.lattice
                     if type(constrain_latt).__name__ == "list":
-                        if all(getattr(p_latt, p) == getattr(s_latt, p) for p in constrain_latt):
+                        if all(getattr(p_latt, pp) == getattr(s_latt, pp) for pp in constrain_latt):
                             return p
                     elif type(constrain_latt).__name__ == "dict":
-                        if all(getattr(p_latt, p) == constrain_latt[p] for p in constrain_latt.keys()):  # type: ignore
+                        if all(
+                            getattr(p_latt, pp) == constrain_latt[pp] for pp in constrain_latt.keys()  # type: ignore
+                        ):
                             return p
 
         return self.copy()
@@ -2539,9 +2536,10 @@ class IMolecule(SiteCollection, MSONable):
         species: Sequence[CompositionLike],
         coords: Sequence[ArrayLike],
         charge: float = 0.0,
-        spin_multiplicity: float = None,
+        spin_multiplicity: int = None,
         validate_proximity: bool = False,
         site_properties: dict = None,
+        charge_spin_check: bool = True,
     ):
         """
         Creates a Molecule.
@@ -2563,6 +2561,9 @@ class IMolecule(SiteCollection, MSONable):
                 a dict of sequences, e.g., {"magmom":[5,5,5,5]}. The
                 sequences have to be the same length as the atomic species
                 and fractional_coords. Defaults to None for no properties.
+            charge_spin_check (bool): Whether to check that the charge and
+                spin multiplicity are compatible with each other. Defaults
+                to True.
         """
         if len(species) != len(coords):
             raise StructureError(
@@ -2573,6 +2574,8 @@ class IMolecule(SiteCollection, MSONable):
                 )
             )
 
+        self._charge_spin_check = charge_spin_check
+
         sites = []
         for i, _ in enumerate(species):
             prop = None
@@ -2582,7 +2585,7 @@ class IMolecule(SiteCollection, MSONable):
 
         self._sites = tuple(sites)
         if validate_proximity and not self.is_valid():
-            raise StructureError(("Molecule contains sites that are ", "less than 0.01 Angstrom apart!"))
+            raise StructureError("Molecule contains sites that are less than 0.01 Angstrom apart!")
 
         self._charge = charge
         nelectrons = 0.0
@@ -2593,10 +2596,10 @@ class IMolecule(SiteCollection, MSONable):
         nelectrons -= charge
         self._nelectrons = nelectrons
         if spin_multiplicity:
-            if (nelectrons + spin_multiplicity) % 2 != 1:
+            if charge_spin_check and (nelectrons + spin_multiplicity) % 2 != 1:
                 raise ValueError(
-                    "Charge of %d and spin multiplicity of %d is"
-                    " not possible for this molecule" % (self._charge, spin_multiplicity)
+                    f"Charge of {self._charge} and spin multiplicity of {spin_multiplicity} is not possible for "
+                    "this molecule!"
                 )
             self._spin_multiplicity = spin_multiplicity
         else:
@@ -2645,7 +2648,12 @@ class IMolecule(SiteCollection, MSONable):
 
     @classmethod
     def from_sites(
-        cls, sites: Sequence[Site], charge: float = 0, spin_multiplicity: float = None, validate_proximity: bool = False
+        cls,
+        sites: Sequence[Site],
+        charge: float = 0,
+        spin_multiplicity: int = None,
+        validate_proximity: bool = False,
+        charge_spin_check: bool = True,
     ) -> IMolecule | Molecule:
         """
         Convenience constructor to make a Molecule from a list of sites.
@@ -2657,6 +2665,9 @@ class IMolecule(SiteCollection, MSONable):
                 in which it is determined automatically.
             validate_proximity (bool): Whether to check that atoms are too
                 close.
+            charge_spin_check (bool): Whether to check that the charge and
+                spin multiplicity are compatible with each other. Defaults
+                to True.
         """
         props = collections.defaultdict(list)
         for site in sites:
@@ -2669,6 +2680,7 @@ class IMolecule(SiteCollection, MSONable):
             spin_multiplicity=spin_multiplicity,
             validate_proximity=validate_proximity,
             site_properties=props,
+            charge_spin_check=charge_spin_check,
         )
 
     def break_bond(self, ind1: int, ind2: int, tol: float = 0.2) -> tuple[IMolecule | Molecule, ...]:
@@ -3007,6 +3019,7 @@ class IMolecule(SiteCollection, MSONable):
             charge=self._charge,
             spin_multiplicity=self._spin_multiplicity,
             site_properties=self.site_properties,
+            charge_spin_check=self._charge_spin_check,
         )
 
     def to(self, fmt=None, filename=None):
@@ -3814,9 +3827,10 @@ class Molecule(IMolecule, collections.abc.MutableSequence):
         species: Sequence[SpeciesLike],
         coords: Sequence[ArrayLike],
         charge: float = 0.0,
-        spin_multiplicity: float = None,
+        spin_multiplicity: int = None,
         validate_proximity: bool = False,
         site_properties: dict = None,
+        charge_spin_check: bool = True,
     ) -> None:
         """
         Creates a MutableMolecule.
@@ -3838,6 +3852,9 @@ class Molecule(IMolecule, collections.abc.MutableSequence):
                 a dict of sequences, e.g., {"magmom":[5,5,5,5]}. The
                 sequences have to be the same length as the atomic species
                 and fractional_coords. Defaults to None for no properties.
+            charge_spin_check (bool): Whether to check that the charge and
+                spin multiplicity are compatible with each other. Defaults
+                to True.
         """
         super().__init__(
             species,
@@ -3846,6 +3863,7 @@ class Molecule(IMolecule, collections.abc.MutableSequence):
             spin_multiplicity=spin_multiplicity,
             validate_proximity=validate_proximity,
             site_properties=site_properties,
+            charge_spin_check=charge_spin_check,
         )
         self._sites: list[Site] = list(self._sites)  # type: ignore
 
@@ -3923,7 +3941,7 @@ class Molecule(IMolecule, collections.abc.MutableSequence):
             properties=properties,
         )
 
-    def set_charge_and_spin(self, charge: float, spin_multiplicity: float | None = None):
+    def set_charge_and_spin(self, charge: float, spin_multiplicity: int | None = None):
         """
         Set the charge and spin multiplicity.
 
@@ -3943,7 +3961,7 @@ class Molecule(IMolecule, collections.abc.MutableSequence):
         nelectrons -= charge
         self._nelectrons = nelectrons
         if spin_multiplicity:
-            if (nelectrons + spin_multiplicity) % 2 != 1:
+            if self._charge_spin_check and (nelectrons + spin_multiplicity) % 2 != 1:
                 raise ValueError(
                     "Charge of {} and spin multiplicity of {} is"
                     " not possible for this molecule".format(self._charge, spin_multiplicity)
