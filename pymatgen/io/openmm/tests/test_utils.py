@@ -279,14 +279,20 @@ def test_parameterize_system():
     assert system.usesPeriodicBoundaryConditions()
 
 
-def test_parameterize_mixedforcefield_system():
+# @pytest.mark.parametrize(
+#
+# )
+
+
+@pytest.mark.parametrize("w_ff, sm_ff", [("spce", "gaff"), ("spce", "sage"), ("tip3p", "gaff")])
+def test_parameterize_mixedforcefield_system(w_ff, sm_ff):
     # TODO: test with charges
     # TODO: periodic boundaries assertion
     # TODO: assert forcefields assigned correctly
     topology = get_openmm_topology({"O": 200, "CCO": 20})
     smile_strings = ["O", "CCO"]
     box = [0, 0, 0, 19.59, 19.59, 19.59]
-    force_field = {"O": "amber14/spce.xml", "CCO": "gaff-2.11"}
+    force_field = {"O": w_ff, "CCO": sm_ff}
     partial_charge_method = "am1bcc"
     system = parameterize_system(
         topology,
@@ -297,5 +303,42 @@ def test_parameterize_mixedforcefield_system():
         partial_charge_scaling={},
         partial_charges=[],
     )
+    assert len(system.getForces()) > 0
+    wforce = system.getForces()[0].getBondParameters(0)
+    notwforce = system.getForces()[0].getBondParameters(401)
+    assert wforce != notwforce
     assert system.getNumParticles() == 780
     assert system.usesPeriodicBoundaryConditions()
+
+
+@pytest.mark.parametrize("modela, modelb", [("spce", "tip3p"), ("amber14/tip3p.xml", "amber14/tip3pfb.xml")])
+def test_water_models(modela, modelb):
+    topology = get_openmm_topology({"O": 200})
+    smile_strings = ["O"]
+    box = [0, 0, 0, 19.59, 19.59, 19.59]
+    force_field_a = {"O": modela}
+    partial_charge_method = "am1bcc"
+    system_a = parameterize_system(
+        topology,
+        smile_strings,
+        box,
+        force_field=force_field_a,
+        partial_charge_method=partial_charge_method,
+        partial_charge_scaling={},
+        partial_charges=[],
+    )
+    force_field_b = {"O": modelb}
+    partial_charge_method = "am1bcc"
+    system_b = parameterize_system(
+        topology,
+        smile_strings,
+        box,
+        force_field=force_field_b,
+        partial_charge_method=partial_charge_method,
+        partial_charge_scaling={},
+        partial_charges=[],
+    )
+    force_a = system_a.getForces()[0].getBondParameters(0)
+    force_b = system_b.getForces()[0].getBondParameters(0)
+    # assert rOH is different for two different water models
+    assert force_a[2] != force_b[2]

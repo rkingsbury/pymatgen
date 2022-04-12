@@ -15,7 +15,7 @@ import openff
 from openff.toolkit.typing.engines import smirnoff
 from openff.toolkit.typing.engines.smirnoff.parameters import LibraryChargeHandler
 import openmm
-from openmm.unit import elementary_charge, angstrom
+from openmm.unit import elementary_charge
 from openmm.app import Topology
 from openmm.app import ForceField as omm_ForceField
 from openmm.app.forcefield import PME
@@ -299,7 +299,7 @@ def assign_charges_to_mols(
     This will modify the original force field, not make a copy.
 
     Args:
-        forcefield: force field that will have partial charges added.
+        smile_strings: A list of SMILEs strings
         partial_charge_scaling: A dictionary of partial charge scaling for particular species. Keys
         are SMILEs and values are the scaling factor.
         partial_charges: A list of tuples, where the first element of each tuple is a molecular
@@ -308,7 +308,7 @@ def assign_charges_to_mols(
             same atom ordering.
 
     Returns:
-        forcefield with partial charges added.
+       List of charged openff Molecules
     """
     # loop through partial charges to add to force field
     matched_mols = set()
@@ -345,6 +345,92 @@ def assign_charges_to_mols(
     return charged_mols
 
 
+def assign_small_molecule_ff(molecules: List[openff.toolkit.topology.Molecule], forcefield_name: str):
+    """
+    Args:
+    molecules: List of openff Molecule objects
+    forcefield_name: Name of forcefield to apply to the Molecules, can be
+                    the absolute path recognized by OpenMM,
+                    e.g. "openff-2.0.0" or the generic name, e.g. "sage"
+
+    Returns:
+    OpenMM Template
+    """
+    smirnoff_ff_names = SMIRNOFFTemplateGenerator.INSTALLED_FORCEFIELDS
+    gaff_ff_names = GAFFTemplateGenerator.INSTALLED_FORCEFIELDS
+    template = None
+    if forcefield_name == "sage" or forcefield_name in smirnoff_ff_names:
+        ff_name = "openff-2.0.0" if forcefield_name == "sage" else forcefield_name
+        template = SMIRNOFFTemplateGenerator(molecules=molecules, forcefield=ff_name)
+
+    elif forcefield_name == "gaff" or forcefield_name in gaff_ff_names:
+        ff_name = "gaff-2.11" if forcefield_name == "gaff" else forcefield_name
+        template = GAFFTemplateGenerator(molecules=molecules, forcefield=ff_name)
+    else:
+        raise NotImplementedError(
+            f"{forcefield_name} is not supported."
+            f"currently only these force fields are supported:"
+            f" {' '.join(smirnoff_ff_names + gaff_ff_names)}.\n"
+            f"Please select one of the supported force fields."
+        )
+    return template
+
+
+def assign_biopolymer_and_water_ff(openmm_forcefield: openmm.app.forcefield, forcefield_assignment: List[str]):
+    """
+
+    Args:
+    openmm_forcefield: OpenMM forcefield to be updated with forcefield choices
+    forcefield_assignment: List of forcefield names to be added to the OpenMM
+                        forcefield. Supports casual naming, e.g. "tip3p" or
+                        "spce" instead of specigying the full path in OpenMM
+
+    Returns:
+    OpenMM Forcefield populated with chosen forcefields
+    """
+    water_assignment = {
+        "amber": {"spce": "amber14/spce.xml", "tip3p": "amber14/tip3p.xml"},
+        "charmm": {"spce": "charmm36/spce.xml", "tip3p": "charmm36/water.xml"},
+        "no_biomolecule": {"spce": "spce.xml", "tip3p": "tip3p.xml"},
+    }
+    basic_water_ffs = ["tip3p", "spce"]
+    biopolymer_ff_category = None
+    for ff in forcefield_assignment:
+        temp_ff_string = None
+        if "amber" in ff.lower():
+            temp_ff_string = "amber"
+        elif "charmm" in ff.lower():
+            temp_ff_string = "charmm"
+        if temp_ff_string:
+            if biopolymer_ff_category is None:
+                biopolymer_ff_category = temp_ff_string
+            else:
+                if biopolymer_ff_category != temp_ff_string:
+                    warnings.warn(
+                        f"Did you mean to mix {temp_ff_string} and " f"{biopolymer_ff_category} force fields?"
+                    )
+
+    ff_to_load = None
+    for ff in forcefield_assignment:
+        if ff in basic_water_ffs:
+            # Ensure the water model matches the large molecule model
+            if biopolymer_ff_category:
+                if ff in water_assignment[biopolymer_ff_category].keys():
+                    ff_to_load = water_assignment[biopolymer_ff_category][ff]
+                else:
+                    warnings.warn(f"Did you mean to use {ff} with the " f"" f"{biopolymer_ff_category} force field?")
+            # If there isn't a large molecule forcefield required,
+            # assume amber14
+            else:
+                ff_to_load = water_assignment["no_biomolecule"][ff]
+        # TODO: Add lookup to ensure the ff is allowable
+        # This allows custom ff strings
+        else:
+            ff_to_load = ff
+        openmm_forcefield.loadFile(ff_to_load)
+    return openmm_forcefield
+
+
 def parameterize_system(
     topology: Topology,
     smile_strings: List[str],
@@ -360,111 +446,85 @@ def parameterize_system(
     Args:
         topology: an OpenMM topology.
         smile_strings: a list of SMILEs representing each molecule in the system.
-        box: list of [xlo, ylo, zlo, xhi, yhi, zhi].
-        force_field: name of the force field. Currently only Sage is supported.
-        partial_charge_method:
-        partial_charge_scaling:
-        partial_charges:
+        box: list of [xlo, ylo, zlo, xhi, yhi, zhi] in nanometers.
+        force_field: Name of the force field or dict of forcefields for each
+                    small molecule, e.g. {"O": "spce"}. Small molecule
+                    forcefields and water models can either be provided
+                    informally, i.e. "gaff" or "sage" for small molecules,
+                    or "spce" pr "tip3p" for water, or can be
+                    formally defined with OpenMM filenames,
+                    e.g. "charmm36/water.xml". Large molecule forcefields
+                    must be specified with the full path,
+                    e.g. "amber14/protein.ff14SB.xml". 4 or more point water
+                    models are currently not supported!
+        partial_charge_method: Method for OpenFF partial charge assignment
+                                for small molecules without charges provided
+                                in partial_charges
+        partial_charge_scaling: Scaling for partial charges, as a dict
+                                of {str: float, . . .}, e.g. {"[Li+]": 0.8}
+        partial_charges: List of tuples of (molecule, charges).
+                        The Molecule can be a Pymatgen Molecule or the
+                        path to a structure file that can be parsed by
+                        Pymatgen. Charges is a numpy array with length equal
+                         to the number of sites in the molecule.
 
     Returns:
         an OpenMM.system
     """
-
     partial_charge_scaling = partial_charge_scaling if partial_charge_scaling else {}
     partial_charges = partial_charges if partial_charges else []
-    supported_force_fields = ["Sage"]
+    basic_small_ffs = ["gaff", "sage"]
+
+    all_small_ffs = SMIRNOFFTemplateGenerator.INSTALLED_FORCEFIELDS + GAFFTemplateGenerator.INSTALLED_FORCEFIELDS
+
+    forcefield_omm = omm_ForceField()
     if isinstance(force_field, str):
-        if force_field.lower() == "sage":
-            openff_forcefield = smirnoff.ForceField("openff_unconstrained-2.0.0.offxml")
-            charged_openff_mols = assign_charges_to_mols(
-                smile_strings,
-                partial_charge_method,
-                partial_charge_scaling,
-                partial_charges,
-            )
-            openff_topology = openff.toolkit.topology.Topology.from_openmm(topology, charged_openff_mols)
-            box_vectors = list(np.array(box[3:6]) - np.array(box[0:3])) * angstrom
-            openff_topology.box_vectors = box_vectors
-            system = openff_forcefield.create_openmm_system(
-                openff_topology,
-                charge_from_molecules=charged_openff_mols,
-                allow_nonintegral_charges=True,
-            )
-            return system
+        ff_name = force_field.lower()
+        charged_off_mols = assign_charges_to_mols(
+            smile_strings=smile_strings,
+            partial_charges=partial_charges,
+            partial_charge_scaling=partial_charge_scaling,
+            partial_charge_method=partial_charge_method,
+        )
+        template = assign_small_molecule_ff(molecules=charged_off_mols, forcefield_name=ff_name)
+        forcefield_omm.registerTemplateGenerator(template.generator)
+
     else:
-        # TODO: Make decisions for user about ff name
-        # TODO: Dict instead of list of tuples
-        # TODO: Make periodic
-        # TODO: figure out how to add partial charges
-        small_ffs = [
-            "smirnoff99Frosst-1.0.2",
-            "smirnoff99Frosst-1.0.0",
-            "smirnoff99Frosst-1.1.0",
-            "smirnoff99Frosst-1.0.4",
-            "smirnoff99Frosst-1.0.8",
-            "smirnoff99Frosst-1.0.6",
-            "smirnoff99Frosst-1.0.3",
-            "smirnoff99Frosst-1.0.1",
-            "smirnoff99Frosst-1.0.5",
-            "smirnoff99Frosst-1.0.9",
-            "smirnoff99Frosst-1.0.7",
-            "openff-1.0.1",
-            "openff-1.1.1",
-            "openff-1.0.0-RC1",
-            "openff-1.2.0",
-            "openff-1.3.0",
-            "openff-2.0.0-rc.2",
-            "openff-2.0.0",
-            "openff-1.1.0",
-            "openff-1.0.0",
-            "openff-1.0.0-RC2",
-            "openff-1.3.1",
-            "openff-1.2.1",
-            "openff-1.3.1-alpha.1",
-            "openff-2.0.0-rc.1",
-            "gaff-1.4",
-            "gaff-1.8",
-            "gaff-1.81",
-            "gaff-2.1",
-            "gaff-2.11",
-        ]
         small_molecules = {}
-        large_or_water = {}
+        biopolymer_or_water = []
+        # iterate through each smile, if no forcefielded provided use Sage
         # iterate through each molecule and forcefield input as list
-        for smile, ff_name in force_field.items():
-            openff_mol = openff.toolkit.topology.Molecule.from_smiles(smile)
-            # Assign mols and forcefield as small molecule vs AMBER or
-            # CHARMM
-            if ff_name.lower() in small_ffs:
-                small_molecules[openff_mol] = ff_name.lower()
+        # Add charges to the molecule if provided
+        charged_mols = assign_charges_to_mols(
+            smile_strings=smile_strings,
+            partial_charges=partial_charges,
+            partial_charge_method=partial_charge_method,
+            partial_charge_scaling=partial_charge_scaling,
+        )
+        for smile, charged_mol in zip(smile_strings, charged_mols):
+            if smile in force_field.keys():
+                ff_name = force_field[smile]
+                if ff_name.lower() in all_small_ffs or ff_name.lower() in basic_small_ffs:
+                    small_molecules[charged_mol] = ff_name
+                else:
+                    biopolymer_or_water.append(ff_name)
             else:
-                large_or_water[openff_mol] = ff_name.lower()
-        forcefield_omm = omm_ForceField()
-        for ff in large_or_water.values():
-            forcefield_omm.loadFile(ff)
-        for mol, ff in small_molecules.items():
-            if "gaff" in ff:
-                gaff = GAFFTemplateGenerator(molecules=mol, forcefield=ff)
-                forcefield_omm.registerTemplateGenerator(gaff.generator)
-            elif "smirnoff" in ff or "openff" in ff:
-                sage = SMIRNOFFTemplateGenerator(molecules=mol, forcefield=ff)
-                forcefield_omm.registerTemplateGenerator(sage.generator())
-        box_size = min(box[3] - box[0], box[4] - box[1], box[5] - box[2])
-        nonbondedCutoff = min(10, box_size // 2)
-        periodic_box_vectors = np.multiply(
-            np.array(
-                [
-                    [box[3] - box[0], 0, 0],
-                    [0, box[4] - box[1], 0],
-                    [0, 0, box[5] - box[2]],
-                ]
-            ),
-            0.1,
-        )  # needs to be nanometers, assumes box in angstroms
-        topology.setPeriodicBoxVectors(vectors=periodic_box_vectors)
-        system = forcefield_omm.createSystem(topology=topology, nonbondedMethod=PME, nonbondedCutoff=nonbondedCutoff)
-        return system
-    raise NotImplementedError(
-        f"currently only these force fields are supported: {' '.join(supported_force_fields)}.\n"
-        f"Please select one of the supported force fields."
+                small_molecules[charged_mol] = "sage"
+        forcefield_omm = assign_biopolymer_and_water_ff(forcefield_omm, biopolymer_or_water)
+        for mol, ff_name in small_molecules.items():
+            template = assign_small_molecule_ff(molecules=[mol], forcefield_name=ff_name)
+            forcefield_omm.registerTemplateGenerator(template.generator)
+
+    box_size = min(box[3] - box[0], box[4] - box[1], box[5] - box[2])
+    nonbondedCutoff = min(10, box_size // 2)
+    # TODO: Make insensitive to input units
+    periodic_box_vectors = np.array(
+        [
+            [box[3] - box[0], 0, 0],
+            [0, box[4] - box[1], 0],
+            [0, 0, box[5] - box[2]],
+        ]
     )
+    topology.setPeriodicBoxVectors(vectors=periodic_box_vectors)
+    system = forcefield_omm.createSystem(topology=topology, nonbondedMethod=PME, nonbondedCutoff=nonbondedCutoff)
+    return system
