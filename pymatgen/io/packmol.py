@@ -61,6 +61,7 @@ class PackmolSet(InputSet):
             )
         try:
             os.chdir(path)
+            print(path, self.inputfile)
             p = subprocess.run(
                 f"packmol < '{self.inputfile}'",
                 check=True,
