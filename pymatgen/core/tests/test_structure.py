@@ -1513,6 +1513,11 @@ Site: H (-0.5134, 0.8892, -0.3630)"""
         mol = IMolecule(["O"] * 2, [[0, 0, 0], [0, 0, 1.2]], spin_multiplicity=3)
         self.assertEqual(mol.spin_multiplicity, 3)
 
+        # Warning reminding users that O2 ground state is triplet
+        # Triplet O2
+        with pytest.warns(UserWarning, match="the ground state of molecular O2 has a spin multiplicity of 3"):
+            mol = IMolecule(["O"] * 2, [[0, 0, 0], [0, 0, 1.2]], spin_multiplicity=1)
+
     def test_no_spin_check(self):
         coords = [
             [0.000000, 0.000000, 0.000000],
