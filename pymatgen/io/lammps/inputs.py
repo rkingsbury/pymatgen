@@ -5,21 +5,22 @@
 This module implements methods for writing LAMMPS input files.
 """
 
-
 import os
 import re
 import shutil
 import warnings
+from collections import OrderedDict
 from pathlib import Path
 from string import Template
 from typing import Dict, Optional, Union
 
 from monty.dev import deprecated
+from monty.io import zopen
 from monty.json import MSONable
 
 from pymatgen.io.core import InputFile
-from pymatgen.io.template import TemplateInputGen
 from pymatgen.io.lammps.data import LammpsData  # , CombinedData
+from pymatgen.io.template import TemplateInputGen
 
 __author__ = "Kiran Mathew, Brandon Wood, Zhi Deng"
 __copyright__ = "Copyright 2018, The Materials Virtual Lab"
@@ -31,18 +32,253 @@ __date__ = "Aug 1, 2018"
 
 class LammpsInputFile(InputFile):
     """
-    Class representing a LAMMPS input settings file, e.g. in.lammps
+    Class representing a LAMMPS input settings file, e.g. in.lammps.
+    Allows for LAMMPS input generation in line/stage wise manner. A stage
+    here is defined as a block of LAMMPS input commands usually performing a
+    specific task during the simulation such as energy minimization or
+    NPT/NVT runs. But more broadly, a stage can also be block of LAMMPS
+    input where simulation box is setup, a set of variables are declared or
+    quantities are computed. A comment beginning with '#' is treated as a
+    header for a stage and marks the start of a new stage in the LAMMPS input.
+    Other comments starting with '##' are treated as conventional comments.
     """
 
-    pass
+    def __init__(self, input_settings: OrderedDict = None):
+        """
+        Args:
+            input_settings: Ordered Dictionary of LAMMPS input settings.
+        """
+
+        self.nstages = 0
+        self.ncomments = 0
+        self.input_settings = input_settings if input_settings is not None else OrderedDict()
+        self.curr_stage_name = None
+
+    def init_stage(self):
+        """
+        Use this to initiate new stage/black in LAMMPS input file.
+        """
+
+        self.nstages += 1
+
+        stage_name = "stage %s" % self.nstages
+        self._add_stage_name(stage_name)
+
+    def add_comment(self, comment: str, is_stage_header: bool = False) -> None:
+        """
+         Method to add a comment or a stage header.
+
+        Args:
+            comment: Comment string to be added. The comment will be
+                preceded '##' (double hash) in the generated input.
+            is_stage_header: Set this to True, if the comment should be
+                treated as stage/block header to be used at the beginning of
+                each stage/block. Headers are preceded by '#' (single hash)
+                in the generated input.
+        """
+
+        if is_stage_header:
+            self._add_command("header", "# " + comment)
+        else:
+            self.ncomments += 1
+            self._add_command(f"comment_{self.ncomments}", "## " + comment)
+
+    def add_commands(self, commands: Union[str, list, dict], stage_name: str = None):
+        """
+        Adds LAMMPS command/s and its arguments to LAMMPS input file.
+
+        Args:
+            commands: LAMMPS command/s. Can pass single string or list of LAMMPS command
+            with its arguments. Also accepts dictionary of LAMMPS commands are
+            corresponding arguments as key value pairs.
+            stage_name: If a stage name is mentioned, the command is added
+                under that stage block else latest stage is assumed.
+        """
+
+        if self.curr_stage_name is None:
+            self.init_stage()
+        self._add_stage_name(stage_name)
+
+        if isinstance(commands, str):
+            self._add_command(commands)
+        elif isinstance(commands, list):
+            for command in commands:
+                self._add_command(command=command)
+        elif isinstance(commands, dict):
+            for command, args in commands.items():
+                self._add_command(command=command, args=args)
+
+    def add_stage(self, stage_commands: Union[list, dict], header: str = None, description: str = None):
+        """
+        Adds an entire stage or block of LAMMPS input commands and argument.
+
+        Args:
+            stage_commands:A dictionary containing LAMMPS commands and arguments
+                as key value pairs. Example: {'units': 'metal', 'atom_style': 'charge'}.
+                Alternatively, a list of strings containing both LAMMPS commands
+                and corresponding arguments can be provided. Example: ['units  metal',
+                'atom_style charge']
+            header: The header for the stage. The stage number will be used
+                as the header if not provided.
+            description: Add short description for this stage. This will
+                add inline with the stage header in the input
+        """
+
+        self.init_stage()
+
+        if header is None:
+            header = self.curr_stage_name
+
+        if description is not None:
+            self.add_comment(f"{header} : {description}", is_stage_header=True)
+        else:
+            self.add_comment(header, is_stage_header=True)  # type: ignore
+
+        self.add_commands(commands=stage_commands)
+
+    def generate_lammps_input(self):
+        """
+        Returns: LammpsInputFile object
+        """
+        return LammpsInputFile(self.input_settings)
+
+    def get_string(self):
+        """
+        Generates and returns the string representation of LAMMPS input file.
+
+        Returns: String representation of LAMMPS input file.
+
+        """
+
+        lammps_input = "## LAMMPS input generated from LammpsInputConstructor\n\n"
+        for stage, command_dict in self.input_settings.items():
+            for command, args in command_dict.items():
+                if command.startswith("comment") or command.startswith("header"):
+                    if command.startswith("header"):
+                        lammps_input += "\n"
+                    lammps_input += args + "\n"
+                else:
+                    lammps_input += f"{command:20} {args}\n"
+        return lammps_input
+
+    def from_string(self, s: str):  # type: ignore
+        """
+        Helper method to parse string representation of LammpsInputFile
+
+        Args:
+            s: String representation of LammpsInputFile.
+
+        Returns: LammpsInputFile
+        """
+
+        for line in self._clean_lines(s.splitlines()[1:]):
+            if line[:2] == "##":
+                self.add_comment(comment=line[2:], is_stage_header=False)
+            if line[0] == "#":
+                self.init_stage()
+                self.add_comment(comment=line[2:], is_stage_header=True)
+            else:
+                self.add_commands(line)
+
+        return LammpsInputFile(self.input_settings)
+
+    def from_file(self, path: Union[str, Path]):  # type: ignore
+        """
+        Creates an InputFile object from a file.
+
+        Args:
+            path: Filename to read, including path.
+
+        Returns:
+            InputFile
+        """
+        filename = path if isinstance(path, Path) else Path(path)
+        with zopen(filename, "rt") as f:
+            return self.from_string(f.read())
+
+    @classmethod
+    def from_dict(cls, d: dict):
+        """
+        Reads LammpsInputFile from Ordered dictionary.
+        Args:
+            d: LammpsIncarFile ordered dict.
+
+        Returns:
+            LammpsInputFile object
+        """
+        return LammpsInputFile(OrderedDict({k: v for k, v in d.items() if not k.startswith("@")}))
+
+    def as_dict(self):
+        """
+        Returns ordered dictionary of LammpsInputFile parameters.
+
+        Returns:
+            LammpsInputFile ordered dictionary.
+        """
+        d = self.input_settings.copy()
+        d["@module"] = type(self).__module__
+        d["@class"] = type(self).__name__
+        return d
+
+    def __str__(self):
+        return self.get_string()
+
+    @staticmethod
+    def _clean_lines(string_list: list):
+        """
+        Helper method to strips whitespaces, carriage returns and empty
+        lines from a list of strings.
+
+        Args:
+            string_list (list): List of strings.
+        """
+        for s in string_list:
+            clean_s = s
+            clean_s = clean_s.strip()
+            if not (clean_s == "" or clean_s == "\n"):
+                yield clean_s
+
+    def _add_stage_name(self, stage_name: str = None) -> None:
+        """
+        Helper method to generate and add stage name internally.
+
+        Args:
+            stage_name: Stage name to be added.
+        """
+
+        if stage_name is None:
+            stage_name = self.curr_stage_name if self.curr_stage_name is not None else "stage %s" % self.nstages
+
+        if not (stage_name in self.input_settings.keys()):
+            self.input_settings[stage_name] = OrderedDict()
+            self.curr_stage_name = stage_name  # type: ignore
+
+    def _add_command(self, command: str, args: str = None, stage_name: str = None):
+        """
+        Helper method to add a single LAMMPS command and its arguments to
+        LAMMPS input file.
+
+        Args:
+            command: LAMMPS command
+            args: Arguments for the LAMMPS command
+            stage_name: If a stage name is mentioned, the command is added
+                under that stage block else latest stage is assumed.
+        """
+        if self.curr_stage_name is None:
+            self.init_stage()
+        self._add_stage_name(stage_name)
+
+        if args is None:
+            string_split = command.split()
+            command = string_split[0]
+            args = " ".join(string_split[1:])
+        self.input_settings[self.curr_stage_name][command] = args
 
 
 class CombinedData(InputFile):
     """
     Class representing a LAMMPS data file, e.g. system.data
     """
-
-    pass
 
 
 class LammpsRun(MSONable):
