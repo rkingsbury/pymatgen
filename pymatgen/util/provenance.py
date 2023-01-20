@@ -5,12 +5,15 @@
 Classes and methods related to the Structure Notation Language (SNL)
 """
 
+from __future__ import annotations
+
 import datetime
 import json
 import re
 import sys
 from collections import namedtuple
 from io import StringIO
+from typing import Sequence
 
 from monty.json import MontyDecoder, MontyEncoder
 from monty.string import remove_non_ascii
@@ -34,7 +37,7 @@ MAX_HNODES = 100  # maximum number of HistoryNodes in SNL file
 MAX_BIBTEX_CHARS = 20000  # maximum number of characters for BibTeX reference
 
 
-def is_valid_bibtex(reference):
+def is_valid_bibtex(reference: str) -> bool:
     """
     Use pybtex to validate that a reference is in proper BibTeX format
 
@@ -80,14 +83,14 @@ class HistoryNode(namedtuple("HistoryNode", ["name", "url", "description"])):
         Structure (dict).
     """
 
-    def as_dict(self):
+    def as_dict(self) -> dict[str, str]:
         """
         Returns: Dict
         """
         return {"name": self.name, "url": self.url, "description": self.description}
 
     @staticmethod
-    def from_dict(h_node):
+    def from_dict(h_node: dict[str, str]) -> HistoryNode:
         """
         Args:
             d (dict): Dict representation
@@ -181,7 +184,7 @@ class Author(namedtuple("Author", ["name", "email"])):
 
 class StructureNL:
     """
-    The Structure Notation Language (SNL, pronounced 'snail') is container
+    The Structure Notation Language (SNL, pronounced 'snail') is a container
     for a pymatgen Structure/Molecule object with some additional fields for
     enhanced provenance. It is meant to be imported/exported in a JSON file
     format with the following structure:
@@ -231,7 +234,7 @@ class StructureNL:
         self.authors = [Author.parse_author(a) for a in authors]
 
         # turn projects into list of Strings
-        projects = projects if projects else []
+        projects = projects or []
         self.projects = [projects] if isinstance(projects, str) else projects
 
         # check that references are valid BibTeX
@@ -247,7 +250,7 @@ class StructureNL:
         self.references = references
 
         # turn remarks into list of Strings
-        remarks = remarks if remarks else []
+        remarks = remarks or []
         self.remarks = [remarks] if isinstance(remarks, str) else remarks
 
         # check remarks limit
@@ -256,7 +259,7 @@ class StructureNL:
                 raise ValueError(f"The remark exceeds the maximum size of140 characters: {r}")
 
         # check data limit
-        self.data = data if data else {}
+        self.data = data or {}
         if not sys.getsizeof(self.data) < MAX_DATA_SIZE:
             raise ValueError(
                 f"The data dict exceeds the maximum size limit of {MAX_DATA_SIZE} "
@@ -271,14 +274,14 @@ class StructureNL:
                 )
 
         # check for valid history nodes
-        history = history if history else []  # initialize null fields
+        history = history or []  # initialize null fields
         if len(history) > MAX_HNODES:
             raise ValueError(f"A maximum of {MAX_HNODES} History nodes are supported, you have {len(history)}!")
         self.history = [HistoryNode.parse_history_node(h) for h in history]
         if not all(sys.getsizeof(h) < MAX_HNODE_SIZE for h in history):
             raise ValueError(f"One or more history nodes exceeds the maximum size limit of {MAX_HNODE_SIZE} bytes")
 
-        self.created_at = created_at if created_at else datetime.datetime.utcnow()
+        self.created_at = created_at or datetime.datetime.utcnow()
 
     def as_dict(self):
         """
@@ -329,8 +332,8 @@ class StructureNL:
     @classmethod
     def from_structures(
         cls,
-        structures,
-        authors,
+        structures: Sequence[Structure],
+        authors: Sequence[dict[str, str]],
         projects=None,
         references="",
         remarks=None,
@@ -400,4 +403,8 @@ class StructureNL:
 
     def __eq__(self, other: object) -> bool:
         needed_attrs = ("structure", "authors", "projects", "references", "remarks", "data", "history", "created_at")
+
+        if not all(hasattr(other, attr) for attr in needed_attrs):
+            return NotImplemented
+
         return all(getattr(self, attr) == getattr(other, attr) for attr in needed_attrs)

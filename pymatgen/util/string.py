@@ -3,6 +3,8 @@
 """
 This module provides utility classes for string operations.
 """
+from __future__ import annotations
+
 import re
 from fractions import Fraction
 
@@ -116,10 +118,10 @@ def str_delimited(results, header=None, delimiter="\t"):
     returnstr = ""
     if header is not None:
         returnstr += delimiter.join(header) + "\n"
-    return returnstr + "\n".join([delimiter.join([str(m) for m in result]) for result in results])
+    return returnstr + "\n".join(delimiter.join([str(m) for m in result]) for result in results)
 
 
-def formula_double_format(afloat, ignore_ones=True, tol=1e-8):
+def formula_double_format(afloat, ignore_ones=True, tol: float = 1e-8):
     """
     This function is used to make pretty formulas by formatting the amounts.
     Instead of Li1.0 Fe1.0 P1.0 O4.0, you get LiFePO4.

@@ -1,5 +1,7 @@
 # Copyright (c) Pymatgen Development Team.
 # Distributed under the terms of the MIT License.
+from __future__ import annotations
+
 import gzip
 import json
 import os
@@ -699,6 +701,7 @@ class ForceFieldTest(unittest.TestCase):
         )
         self.assertEqual(v.masses.at[3, "mass"], 15.9994)
         v_ff = v.force_field
+        assert isinstance(v_ff, dict)
         self.assertNotIn("Pair Coeffs", v_ff)
         self.assertEqual(v_ff["PairIJ Coeffs"].iat[5, 4], 1.93631)
         self.assertEqual(v_ff["Bond Coeffs"].at[2, "coeff2"], 0.855906)
@@ -718,6 +721,7 @@ class ForceFieldTest(unittest.TestCase):
         e = self.ethane
         self.assertEqual(e.masses.at[1, "mass"], 12.01115)
         e_ff = e.force_field
+        assert isinstance(e_ff, dict)
         self.assertNotIn("PairIJ Coeffs", e_ff)
         self.assertEqual(e_ff["Pair Coeffs"].at[1, "coeff2"], 3.854)
         self.assertEqual(e_ff["Bond Coeffs"].at[2, "coeff4"], 844.6)

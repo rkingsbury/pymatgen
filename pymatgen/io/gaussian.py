@@ -5,6 +5,8 @@
 This module implements input and output processing from Gaussian.
 """
 
+from __future__ import annotations
+
 import re
 import warnings
 
@@ -153,20 +155,20 @@ class GaussianInput:
                 self.spin_multiplicity = 1 if nelectrons % 2 == 0 else 2
 
             # Get a title from the molecule name
-            self.title = title if title else self._mol.composition.formula
+            self.title = title or self._mol.composition.formula
         else:
             self.charge = charge
             self.spin_multiplicity = spin_multiplicity
 
             # Set a title
-            self.title = title if title else "Restart"
+            self.title = title or "Restart"
 
         # Store the remaining settings
         self.functional = functional
         self.basis_set = basis_set
-        self.link0_parameters = link0_parameters if link0_parameters else {}
-        self.route_parameters = route_parameters if route_parameters else {}
-        self.input_parameters = input_parameters if input_parameters else {}
+        self.link0_parameters = link0_parameters or {}
+        self.route_parameters = route_parameters or {}
+        self.input_parameters = input_parameters or {}
         self.dieze_tag = dieze_tag if dieze_tag[0] == "#" else "#" + dieze_tag
         self.gen_basis = gen_basis
         if gen_basis is not None:
@@ -421,7 +423,7 @@ class GaussianInput:
 
         outs = []
         for site in self._mol:
-            outs.append(" ".join([site.species_string, " ".join([to_s(j) for j in site.coords])]))
+            outs.append(" ".join(site.species_string, " ".join([to_s(j) for j in site.coords])))
         return "\n".join(outs)
 
     def __str__(self):
@@ -433,7 +435,6 @@ class GaussianInput:
 
         Option: when cart_coords is set to True return the Cartesian coordinates
                 instead of the z-matrix
-
         """
 
         def para_dict_to_string(para, joiner=" "):
@@ -520,7 +521,7 @@ class GaussianInput:
         :param d: dict
         :return: GaussianInput
         """
-        return GaussianInput(
+        return cls(
             mol=Molecule.from_dict(d["molecule"]),
             functional=d["functional"],
             basis_set=d["basis_set"],
@@ -1145,7 +1146,7 @@ class GaussianOutput:
                             if line == "\n":
                                 break
                         resume.append(line)
-                        resume = "".join([r.strip() for r in resume])
+                        resume = "".join(r.strip() for r in resume)
                         self.resumes.append(resume)
                     elif bond_order_patt.search(line):
                         parse_bond_order = True
@@ -1358,7 +1359,6 @@ class GaussianOutput:
             A list: A list of tuple for each transition such as
                     [(energie (eV), lambda (nm), oscillatory strength), ... ]
         """
-
         transitions = []
 
         # read in file
