@@ -8,13 +8,6 @@ with the explicit permutations algorithms (typically with coordination numbers <
 
 from __future__ import annotations
 
-__author__ = "David Waroquiers"
-__copyright__ = "Copyright 2012, The Materials Project"
-__version__ = "2.0"
-__maintainer__ = "David Waroquiers"
-__email__ = "david.waroquiers@gmail.com"
-__date__ = "Feb 20, 2016"
-
 import itertools
 import json
 import os
@@ -30,13 +23,19 @@ from pymatgen.analysis.chemenv.coordination_environments.coordination_geometry_f
     LocalGeometryFinder,
 )
 
+__author__ = "David Waroquiers"
+__copyright__ = "Copyright 2012, The Materials Project"
+__version__ = "2.0"
+__maintainer__ = "David Waroquiers"
+__email__ = "david.waroquiers@gmail.com"
+__date__ = "Feb 20, 2016"
+
 
 class Algo:
     pass
 
 
 if __name__ == "__main__":
-
     # Choose the geometry
     allcg = AllCoordinationGeometries()
     while True:
@@ -65,10 +64,9 @@ if __name__ == "__main__":
     lgf.perfect_geometry = AbstractGeometry.from_cg(cg=cg)
 
     points_perfect = lgf.perfect_geometry.points_wocs_ctwocc()
-    res = lgf.coordination_geometry_symmetry_measures_standard(
+    csms, perms, algos, local2perfect_maps, perfect2local_maps = lgf.coordination_geometry_symmetry_measures_standard(
         coordination_geometry=cg, algo=algo, points_perfect=points_perfect
     )
-    (csms, perms, algos, local2perfect_maps, perfect2local_maps) = res
 
     csms_with_recorded_permutation = []
     explicit_permutations = []
