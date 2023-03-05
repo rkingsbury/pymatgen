@@ -4,6 +4,8 @@
 This module provides
 """
 
+from __future__ import annotations
+
 from collections import namedtuple
 
 from monty.functools import lazy_property
@@ -101,14 +103,14 @@ class XcFunc(MSONable):
     # and 42_libpaw/m_pawpsp.F90 for the implementation.
     # Fortunately, all the other cases are handled with libxc.
     abinitixc_to_libxc = {
-        1: dict(xc=xcf.LDA_XC_TETER93),
-        2: dict(x=xcf.LDA_X, c=xcf.LDA_C_PZ),  # PZ  001009
-        4: dict(x=xcf.LDA_X, c=xcf.LDA_C_WIGNER),  # W
-        5: dict(x=xcf.LDA_X, c=xcf.LDA_C_HL),  # HL
-        7: dict(x=xcf.LDA_X, c=xcf.LDA_C_PW),  # PW 001012
-        11: dict(x=xcf.GGA_X_PBE, c=xcf.GGA_C_PBE),  # PBE
-        14: dict(x=xcf.GGA_X_PBE_R, c=xcf.GGA_C_PBE),  # revPBE
-        15: dict(x=xcf.GGA_X_RPBE, c=xcf.GGA_C_PBE),  # RPBE
+        1: {"xc": xcf.LDA_XC_TETER93},
+        2: {"x": xcf.LDA_X, "c": xcf.LDA_C_PZ},  # PZ  001009
+        4: {"x": xcf.LDA_X, "c": xcf.LDA_C_WIGNER},  # W
+        5: {"x": xcf.LDA_X, "c": xcf.LDA_C_HL},  # HL
+        7: {"x": xcf.LDA_X, "c": xcf.LDA_C_PW},  # PW 001012
+        11: {"x": xcf.GGA_X_PBE, "c": xcf.GGA_C_PBE},  # PBE
+        14: {"x": xcf.GGA_X_PBE_R, "c": xcf.GGA_C_PBE},  # revPBE
+        15: {"x": xcf.GGA_X_RPBE, "c": xcf.GGA_C_PBE},  # RPBE
     }
     del xcf
 
@@ -221,7 +223,7 @@ class XcFunc(MSONable):
         # If self is not in defined_aliases, use LibxcFunc family
         if self.xc is not None:
             return self.xc.family
-        return "+".join([self.x.family, self.c.family])
+        return f"{self.x.family}+{self.c.family}"
 
     @lazy_property
     def name(self) -> str:
@@ -236,7 +238,7 @@ class XcFunc(MSONable):
             return self.defined_aliases[xc].name
         if self.xc is not None:
             return self.xc.name
-        return "+".join([self.x.name, self.c.name])
+        return f"{self.x.name}+{self.c.name}"
 
     def __repr__(self) -> str:
         return str(self.name)

@@ -2,6 +2,8 @@
 Structure connectivity class.
 """
 
+from __future__ import annotations
+
 import collections
 import logging
 
@@ -79,7 +81,6 @@ class StructureConnectivity(MSONable):
 
     def environment_subgraph(self, environments_symbols=None, only_atoms=None):
         """
-
         Args:
             environments_symbols ():
             only_atoms ():
@@ -121,13 +122,12 @@ class StructureConnectivity(MSONable):
                         break
             else:
                 if isite == nb_index_unitcell:
-                    for (isite1, ineighb1, data1) in existing_edges:
-                        if isite1 == ineighb1:
-                            if np.allclose(data1["delta"], nb_image_cell) or np.allclose(
-                                data1["delta"], -nb_image_cell
-                            ):
-                                exists = True
-                                break
+                    for isite1, ineighb1, data1 in existing_edges:
+                        if isite1 == ineighb1 and (
+                            np.allclose(data1["delta"], nb_image_cell) or np.allclose(data1["delta"], -nb_image_cell)
+                        ):
+                            exists = True
+                            break
                 else:
                     for _, ineighb1, data1 in existing_edges:
                         if nb_index_unitcell == ineighb1:
@@ -262,7 +262,6 @@ class StructureConnectivity(MSONable):
 
     def setup_connectivity_description(self):
         """
-
         Returns:
         """
 
@@ -283,7 +282,6 @@ class StructureConnectivity(MSONable):
 
     def setup_atom_environment_subgraph(self, atom_environment):
         """
-
         Args:
             atom_environment ():
 
@@ -293,7 +291,6 @@ class StructureConnectivity(MSONable):
 
     def setup_environments_subgraph(self, environments_symbols):
         """
-
         Args:
             environments_symbols ():
 
@@ -303,7 +300,6 @@ class StructureConnectivity(MSONable):
 
     def setup_atom_environments_subgraph(self, atoms_environments):
         """
-
         Args:
             atoms_environments ():
 
@@ -313,14 +309,13 @@ class StructureConnectivity(MSONable):
 
     def print_links(self):
         """
-
         Returns:
         """
         nodes = self.environment_subgraph().nodes()
         print("Links in graph :")
         for node in nodes:
             print(node.isite, " is connected with : ")
-            for (n1, n2, data) in self.environment_subgraph().edges(node, data=True):
+            for n1, n2, data in self.environment_subgraph().edges(node, data=True):
                 if n1.isite == data["start"]:
                     print(
                         f"  - {n2.isite} by {len(data['ligands'])} ligands ({data['delta'][0]} "
@@ -334,7 +329,6 @@ class StructureConnectivity(MSONable):
 
     def as_dict(self):
         """
-
         Returns:
         """
         return {
@@ -351,7 +345,6 @@ class StructureConnectivity(MSONable):
     @classmethod
     def from_dict(cls, d):
         """
-
         Args:
             d ():
 

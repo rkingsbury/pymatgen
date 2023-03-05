@@ -11,11 +11,13 @@ tries to fit multiple functions to the x, y data
 
 calculates which function fits best
 for tol < 0
-returns the x value for which y is converged within tol of the assymtotic value
+returns the x value for which y is converged within tol of the asymptotic value
 for tol > 0
 returns the x_value for which dy(x)/dx < tol for all x >= x_value, conv is true is such a x_value exists
-for the best fit a gnuplot line is printed plotting the data, the function and the assymthotic value
+for the best fit a gnuplot line is printed plotting the data, the function and the asymptotic value
 """
+
+from __future__ import annotations
 
 import random
 import string
@@ -23,7 +25,6 @@ import string
 import numpy as np
 
 __author__ = "Michiel van Setten"
-__copyright__ = " "
 __version__ = "0.9"
 __maintainer__ = "Michiel van Setten"
 __email__ = "mjvansetten@gmail.com"
@@ -570,13 +571,7 @@ def determine_convergence(xs, ys, name, tol: float = 0.0001, extra="", verbose=F
             if verbose:
                 print(n, ys[n])
                 print(ys)
-            if tol < 0:
-                if popt[0] is not None:
-                    test = abs(popt[0] - ys[n])
-                else:
-                    test = float("inf")
-            else:
-                test = abs(ds[n])
+            test = (abs(popt[0] - ys[n]) if popt[0] is not None else float("inf")) if tol < 0 else abs(ds[n])
             if verbose:
                 print(test)
             if test < abs(tol):

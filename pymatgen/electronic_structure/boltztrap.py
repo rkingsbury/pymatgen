@@ -280,10 +280,7 @@ class BoltztrapRunner(MSONable):
             else:
                 for i, kpt in enumerate(self._bs.kpoints):
                     eigs = []
-                    if self.run_type == "DOS":
-                        spin_lst = [self.spin]
-                    else:
-                        spin_lst = self._bs.bands
+                    spin_lst = [self.spin] if self.run_type == "DOS" else self._bs.bands
 
                     for spin in spin_lst:
                         # use 90% of bottom bands since highest eigenvalues
@@ -327,7 +324,7 @@ class BoltztrapRunner(MSONable):
 
             f.write(
                 "\n".join(
-                    " ".join([f"{Length(i, 'ang').to('bohr'):.5f}" for i in row])
+                    " ".join(f"{Length(i, 'ang').to('bohr'):.5f}" for i in row)
                     for row in self._bs.structure.lattice.matrix
                 )
                 + "\n"
@@ -429,7 +426,7 @@ class BoltztrapRunner(MSONable):
             for oi, o in enumerate(Orbital):
                 for site_nb in range(0, len(self._bs.structure.sites)):
                     if oi < len(self._bs.projections[Spin.up][0][0]):
-                        f.write(f"{i},'boltztrap.proj_{site_nb}_{o.name}' 'old', 'formatted',0\n")
+                        f.write(f"{i},'boltztrap.proj_{site_nb}_{o.name}old', 'formatted',0\n")
                         i += 1
 
     def write_intrans(self, output_file):
@@ -542,6 +539,7 @@ class BoltztrapRunner(MSONable):
         """
         Write inputs (optional), run BoltzTraP, and ensure
         convergence (optional)
+
         Args:
             path_dir (str): directory in which to run BoltzTraP
             convergence (bool): whether to check convergence and make
@@ -557,7 +555,6 @@ class BoltztrapRunner(MSONable):
 
         Returns:
         """
-
         # TODO: consider making this a part of custodian rather than pymatgen
         # A lot of this functionality (scratch dirs, handlers, monitors)
         # is built into custodian framework
@@ -676,7 +673,7 @@ class BoltztrapRunner(MSONable):
 
                     if warning:
                         self.lpfac += 10
-                        logging.warn(f"Warning detected: {warning}! Increase lpfac to {self.lpfac}")
+                        logging.warning(f"Warning detected: {warning}! Increase lpfac to {self.lpfac}")
 
                     else:
                         converged = True
@@ -998,10 +995,10 @@ class BoltztrapAnalyzer:
         of electron chemical potential values
 
         Args:
-            output (string): the type of output. 'tensor' give the full
+            output (str): the type of output. 'tensor' give the full
             3x3 tensor, 'eigs' its 3 eigenvalues and
             'average' the average of the three eigenvalues
-            doping_levels (boolean): True for the results to be given at
+            doping_levels (bool): True for the results to be given at
             different doping levels, False for results
             at different electron chemical potentials
 
@@ -1030,10 +1027,10 @@ class BoltztrapAnalyzer:
         of electron chemical potential values
 
         Args:
-            output (string): the type of output. 'tensor' give the full
+            output (str): the type of output. 'tensor' give the full
             3x3 tensor, 'eigs' its 3 eigenvalues and
             'average' the average of the three eigenvalues
-            doping_levels (boolean): True for the results to be given at
+            doping_levels (bool): True for the results to be given at
             different doping levels, False for results
             at different electron chemical potentials
             relaxation_time (float): constant relaxation time in secs
@@ -1067,10 +1064,10 @@ class BoltztrapAnalyzer:
         electron chemical potential values
 
         Args:
-            output (string): the type of output. 'tensor' give the full 3x3
+            output (str): the type of output. 'tensor' give the full 3x3
             tensor, 'eigs' its 3 eigenvalues and
             'average' the average of the three eigenvalues
-            doping_levels (boolean): True for the results to be given at
+            doping_levels (bool): True for the results to be given at
             different doping levels, False for results
             at different electron chemical potentials
             relaxation_time (float): constant relaxation time in secs
@@ -1131,13 +1128,13 @@ class BoltztrapAnalyzer:
         electron chemical potential values
 
         Args:
-            output (string): the type of output. 'tensor' give the full 3x3
+            output (str): the type of output. 'tensor' give the full 3x3
             tensor, 'eigs' its 3 eigenvalues and
             'average' the average of the three eigenvalues
-            doping_levels (boolean): True for the results to be given at
+            doping_levels (bool): True for the results to be given at
             different doping levels, False for results
             at different electron chemical potentials
-            k_el (boolean): True for k_0-PF*T, False for k_0
+            k_el (bool): True for k_0-PF*T, False for k_0
             relaxation_time (float): constant relaxation time in secs
 
         Returns:
@@ -1200,10 +1197,10 @@ class BoltztrapAnalyzer:
         lattice thermal conductivity
 
         Args:
-            output (string): the type of output. 'tensor' give the full 3x3
+            output (str): the type of output. 'tensor' give the full 3x3
             tensor, 'eigs' its 3 eigenvalues and
             'average' the average of the three eigenvalues
-            doping_levels (boolean): True for the results to be given at
+            doping_levels (bool): True for the results to be given at
             different doping levels, False for results
             at different electron chemical potentials
             relaxation_time (float): constant relaxation time in secs
@@ -1296,9 +1293,9 @@ class BoltztrapAnalyzer:
         its 3 eigenvalues or an average
 
         Args:
-            output (string): 'eigs' for eigenvalues, 'tensor' for the full
+            output (str): 'eigs' for eigenvalues, 'tensor' for the full
             tensor and 'average' for an average (trace/3)
-            doping_levels (boolean): True for the results to be given at
+            doping_levels (bool): True for the results to be given at
             different doping levels, False for results
             at different electron chemical potentials
         Returns:
@@ -1358,6 +1355,7 @@ class BoltztrapAnalyzer:
             temp:   temperature of calculated seebeck.
             Lambda: fitting parameter used to model the scattering (0.5 means constant
                     relaxation time).
+
         Returns:
             a list of values for the seebeck effective mass w.r.t the chemical potential,
             if doping_levels is set at False;
@@ -1366,7 +1364,6 @@ class BoltztrapAnalyzer:
             if 'tensor' is selected, each element of the lists is a list containing
             the three components of the seebeck effective mass.
         """
-
         if doping_levels:
             sbk_mass = {}
             for dt in ("n", "p"):
@@ -1415,6 +1412,7 @@ class BoltztrapAnalyzer:
             temp:   temperature of calculated seebeck and conductivity.
             Lambda: fitting parameter used to model the scattering (0.5 means constant
                     relaxation time).
+
         Returns:
             a list of values for the complexity factor w.r.t the chemical potential,
             if doping_levels is set at False;
@@ -1423,7 +1421,6 @@ class BoltztrapAnalyzer:
             if 'tensor' is selected, each element of the lists is a list containing
             the three components of the complexity factor.
         """
-
         if doping_levels:
             cmplx_fact = {}
             for dt in ("n", "p"):
@@ -1487,7 +1484,7 @@ class BoltztrapAnalyzer:
             {"value", "temperature", "doping", "isotropic"}
         """
 
-        def is_isotropic(x, isotropy_tolerance):
+        def is_isotropic(x, isotropy_tolerance) -> bool:
             """
             Internal method to tell you if 3-vector "x" is isotropic
 
@@ -1545,10 +1542,7 @@ class BoltztrapAnalyzer:
                             isotropic = is_isotropic(evs, isotropy_tolerance)
                             if absval:
                                 evs = [abs(x) for x in evs]
-                            if use_average:
-                                val = float(sum(evs)) / len(evs)
-                            else:
-                                val = max(evs)
+                            val = float(sum(evs)) / len(evs) if use_average else max(evs)
                             if x_val is None or (val > x_val and maximize) or (val < x_val and not maximize):
                                 x_val = val
                                 x_temp = t
@@ -1683,12 +1677,11 @@ class BoltztrapAnalyzer:
         """
         gives the carrier concentration (in cm^-3)
 
-        Returns
+        Returns:
             a dictionary {temp:[]} with an array of carrier concentration
             (in cm^-3) at each temperature
             The array relates to each step of electron chemical potential
         """
-
         return {temp: [1e24 * i / self.vol for i in self._carrier_conc[temp]] for temp in self._carrier_conc}
 
     def get_hall_carrier_concentration(self):
@@ -1697,7 +1690,7 @@ class BoltztrapAnalyzer:
         the Hall tensor (see Boltztrap source code) Hall carrier concentration
         are not always exactly the same than carrier concentration.
 
-        Returns
+        Returns:
             a dictionary {temp:[]} with an array of Hall carrier concentration
             (in cm^-3) at each temperature The array relates to each step of
             electron chemical potential
@@ -1757,7 +1750,6 @@ class BoltztrapAnalyzer:
         Returns:
             tuple - (DOS, dict of partial DOS)
         """
-
         data_dos = {"total": [], "partial": {}}
         # parse the total DOS data
         # format is energy, DOS, integrated DOS
@@ -1846,6 +1838,7 @@ class BoltztrapAnalyzer:
     def parse_struct(path_dir):
         """
         Parses boltztrap.struct file (only the volume)
+
         Args:
             path_dir: (str) dir containing the boltztrap.struct file
 
@@ -1871,7 +1864,6 @@ class BoltztrapAnalyzer:
             mu_doping, seebeck_doping, cond_doping, kappa_doping,
             hall_doping, carrier_conc
         """
-
         # Step 1: parse raw data but do not convert to final format
         t_steps = set()
         mu_steps = set()
@@ -2292,7 +2284,6 @@ def compare_sym_bands(bands_obj, bands_ref_obj, nb=None):
     sym line, for all bands and locally (for each branches) the difference
     squared (%) if nb is specified.
     """
-
     if bands_ref_obj.is_spin_polarized:
         nbands = min(bands_obj.nb_bands, 2 * bands_ref_obj.nb_bands)
     else:
@@ -2359,7 +2350,12 @@ def seebeck_spb(eta, Lambda=0.5):
     """
     Seebeck analytic formula in the single parabolic model
     """
-    from fdint import fdk
+    try:
+        from fdint import fdk
+    except ImportError:
+        raise BoltztrapError(
+            "fdint module not found. Please, install it.\nIt is needed to calculate Fermi integral quickly."
+        )
 
     return (
         constants.k

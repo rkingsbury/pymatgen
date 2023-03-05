@@ -6,6 +6,7 @@ Utilities for manipulating coordinates or list of coordinates, under periodic
 boundary conditions or otherwise. Many of these are heavily vectorized in
 numpy for performance.
 """
+
 from __future__ import annotations
 
 import itertools
@@ -60,13 +61,14 @@ def in_coord_list(coord_list, coord, atol=1e-8):
     return len(find_in_coord_list(coord_list, coord, atol=atol)) > 0
 
 
-def is_coord_subset(subset, superset, atol=1e-8):
+def is_coord_subset(subset, superset, atol=1e-8) -> bool:
     """
     Tests if all coords in subset are contained in superset.
     Doesn't use periodic boundary conditions
 
     Args:
-        subset, superset: List of coords
+        subset: List of coords
+        superset: List of coords
 
     Returns:
         True if all of subset is in superset.
@@ -75,7 +77,7 @@ def is_coord_subset(subset, superset, atol=1e-8):
     c2 = np.array(superset)
     is_close = np.all(np.abs(c1[:, None, :] - c2[None, :, :]) < atol, axis=-1)
     any_close = np.any(is_close, axis=-1)
-    return np.all(any_close)
+    return all(any_close)
 
 
 def coord_list_mapping(subset, superset, atol=1e-8):
@@ -93,9 +95,8 @@ def coord_list_mapping(subset, superset, atol=1e-8):
     c2 = np.array(superset)
     inds = np.where(np.all(np.isclose(c1[:, None, :], c2[None, :, :], atol=atol), axis=2))[1]
     result = c2[inds]
-    if not np.allclose(c1, result, atol=atol):
-        if not is_coord_subset(subset, superset):
-            raise ValueError("subset is not a subset of superset")
+    if not np.allclose(c1, result, atol=atol) and not is_coord_subset(subset, superset):
+        raise ValueError("subset is not a subset of superset")
     if not result.shape == c1.shape:
         raise ValueError("Something wrong with the inputs, likely duplicates in superset")
     return inds
@@ -115,7 +116,7 @@ def coord_list_mapping_pbc(subset, superset, atol=1e-8, pbc=(True, True, True)):
         list of indices such that superset[indices] = subset
     """
     # pylint: disable=I1101
-    atol = np.array([1.0, 1.0, 1.0]) * atol
+    atol = np.ones(3) * atol
     return cuc.coord_list_mapping_pbc(subset, superset, atol, pbc)
 
 
@@ -202,7 +203,7 @@ def pbc_shortest_vectors(lattice, fcoords1, fcoords2, mask=None, return_d2=False
         mask (boolean array): Mask of matches that are not allowed.
             i.e. if mask[1,2] is True, then subset[1] cannot be matched
             to superset[2]
-        return_d2 (boolean): whether to also return the squared distances
+        return_d2 (bool): whether to also return the squared distances
 
     Returns:
         array of displacement vectors from fcoords1 to fcoords2
@@ -272,10 +273,7 @@ def is_coord_subset_pbc(subset, superset, atol=1e-8, mask=None, pbc=(True, True,
     # pylint: disable=I1101
     c1 = np.array(subset, dtype=np.float64)
     c2 = np.array(superset, dtype=np.float64)
-    if mask is not None:
-        m = np.array(mask, dtype=int)
-    else:
-        m = np.zeros((len(subset), len(superset)), dtype=int)
+    m = np.array(mask, dtype=int) if mask is not None else np.zeros((len(subset), len(superset)), dtype=int)
     atol = np.zeros(3, dtype=np.float64) + atol
     return cuc.is_coord_subset_pbc(c1, c2, atol, m, pbc)
 
@@ -478,11 +476,10 @@ class Simplex(MSONable):
         assert len(barys) < 3
         return [self.point_from_bary_coords(b) for b in barys]
 
-    def __eq__(self, other):
-        for p in itertools.permutations(self._coords):
-            if np.allclose(p, other.coords):
-                return True
-        return False
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Simplex):
+            return NotImplemented
+        return any(np.allclose(p, other.coords) for p in itertools.permutations(self._coords))
 
     def __hash__(self):
         return len(self._coords)

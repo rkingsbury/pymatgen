@@ -15,13 +15,7 @@ Acta Cryst. B 2020, 76, pp 683-695,
 DOI: 10.1107/S2052520620007994
 """
 
-__author__ = "David Waroquiers"
-__copyright__ = "Copyright 2012, The Materials Project"
-__credits__ = "Geoffroy Hautier"
-__version__ = "2.0"
-__maintainer__ = "David Waroquiers"
-__email__ = "david.waroquiers@gmail.com"
-__date__ = "Feb 20, 2016"
+from __future__ import annotations
 
 import itertools
 import logging
@@ -60,6 +54,14 @@ from pymatgen.core.lattice import Lattice
 from pymatgen.core.periodic_table import Species
 from pymatgen.core.structure import Structure
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
+
+__author__ = "David Waroquiers"
+__copyright__ = "Copyright 2012, The Materials Project"
+__credits__ = "Geoffroy Hautier"
+__version__ = "2.0"
+__maintainer__ = "David Waroquiers"
+__email__ = "david.waroquiers@gmail.com"
+__date__ = "Feb 20, 2016"
 
 debug = False
 DIST_TOLERANCES = [0.02, 0.05, 0.1, 0.2, 0.3]
@@ -374,21 +376,18 @@ class LocalGeometryFinder:
 
     def __init__(
         self,
-        permutations_safe_override=False,
-        plane_ordering_override=True,
-        debug_level=None,
-        plane_safe_permutations=False,
+        permutations_safe_override: bool = False,
+        plane_ordering_override: bool = True,
+        plane_safe_permutations: bool = False,
         only_symbols=None,
-        print_citation=False,
+        print_citation: bool = False,
     ):
         """
-
         Args:
-            permutations_safe_override:  If set to True, all permutations are tested (very time-consuming for large
+            permutations_safe_override: If set to True, all permutations are tested (very time-consuming for large
             coordination numbers!)
             plane_ordering_override: If set to False, the ordering of the points in the plane is disabled
-            debug_level: decides the level of debugging
-            permutations_safe_override: Whether to use safe permutations.
+            plane_safe_permutations: Whether to use safe permutations.
             only_symbols: Whether to restrict the list of environments to be identified.
             print_citation: If True, the ChemEnv citation will be printed
         """
@@ -530,8 +529,11 @@ class LocalGeometryFinder:
             if valences == "undefined":
                 vals = valences
             else:
-                if len(valences) != len(structure):
-                    raise ValueError("Valences do not match the number of sites in the structure")
+                len_vals, len_sites = len(valences), len(structure)
+                if len_vals != len_sites:
+                    raise ValueError(
+                        f"Valences ({len_vals}) do not match the number of sites in the structure ({len_sites})"
+                    )
                 vals = valences
         # TODO: add something to compute only the neighbors sets needed for the strategy.
         se = self.compute_structure_environments(
@@ -783,7 +785,7 @@ class LocalGeometryFinder:
                             # Get possibly missing neighbors sets
                             if cg.neighbors_sets_hints is None:
                                 continue
-                            logging.debug(f'       ... getting hints from cg with mp_symbol "{cg_symbol}" ...')
+                            logging.debug(f"       ... getting hints from cg with mp_symbol {cg_symbol!r} ...")
                             hints_info = {
                                 "csm": cg_dict["symmetry_measure"],
                                 "nb_set": nb_set,
@@ -878,10 +880,7 @@ class LocalGeometryFinder:
         if ce is not None and not recompute:
             return ce
         ce = ChemicalEnvironments()
-        if optimization == 2:
-            neighb_coords = nb_set.neighb_coordsOpt
-        else:
-            neighb_coords = nb_set.neighb_coords
+        neighb_coords = nb_set.neighb_coordsOpt if optimization == 2 else nb_set.neighb_coords
         self.setup_local_geometry(isite, coords=neighb_coords, optimization=optimization)
         if optimization > 0:
             logging.debug("Getting StructureEnvironments with optimized algorithm")
@@ -980,10 +979,7 @@ class LocalGeometryFinder:
         else:
             raise ValueError("Wrong mp_symbol to setup coordination geometry")
         neighb_coords = []
-        if points is not None:
-            mypoints = points
-        else:
-            mypoints = cg.points
+        mypoints = points if points is not None else cg.points
         if randomness:
             rv = np.random.random_sample(3)
             while norm(rv) > 1.0:
@@ -1188,10 +1184,7 @@ class LocalGeometryFinder:
             if only_minimum:
                 if len(result) > 0:
                     imin = np.argmin([rr["symmetry_measure"] for rr in result])
-                    if geometry.algorithms is not None:
-                        algo = algos[imin]
-                    else:
-                        algo = algos
+                    algo = algos[imin] if geometry.algorithms is not None else algos
                     result_dict[geometry.mp_symbol] = {
                         "csm": result[imin]["symmetry_measure"],
                         "indices": permutations[imin],
@@ -1303,25 +1296,21 @@ class LocalGeometryFinder:
                 optimization=optimization,
             )
             result, permutations, algos, local2perfect_maps, perfect2local_maps = cgsm
-            if only_minimum:
-                if len(result) > 0:
-                    imin = np.argmin([rr["symmetry_measure"] for rr in result])
-                    if geometry.algorithms is not None:
-                        algo = algos[imin]
-                    else:
-                        algo = algos
-                    result_dict[geometry.mp_symbol] = {
-                        "csm": result[imin]["symmetry_measure"],
-                        "indices": permutations[imin],
-                        "algo": algo,
-                        "local2perfect_map": local2perfect_maps[imin],
-                        "perfect2local_map": perfect2local_maps[imin],
-                        "scaling_factor": 1.0 / result[imin]["scaling_factor"],
-                        "rotation_matrix": np.linalg.inv(result[imin]["rotation_matrix"]),
-                        "translation_vector": result[imin]["translation_vector"],
-                    }
-                    if all_csms:
-                        self._update_results_all_csms(result_dict, permutations, imin, geometry)
+            if only_minimum and len(result) > 0:
+                imin = np.argmin([rr["symmetry_measure"] for rr in result])
+                algo = algos[imin] if geometry.algorithms is not None else algos
+                result_dict[geometry.mp_symbol] = {
+                    "csm": result[imin]["symmetry_measure"],
+                    "indices": permutations[imin],
+                    "algo": algo,
+                    "local2perfect_map": local2perfect_maps[imin],
+                    "perfect2local_map": perfect2local_maps[imin],
+                    "scaling_factor": 1.0 / result[imin]["scaling_factor"],
+                    "rotation_matrix": np.linalg.inv(result[imin]["rotation_matrix"]),
+                    "translation_vector": result[imin]["translation_vector"],
+                }
+                if all_csms:
+                    self._update_results_all_csms(result_dict, permutations, imin, geometry)
         return result_dict
 
     def coordination_geometry_symmetry_measures(
@@ -1425,7 +1414,6 @@ class LocalGeometryFinder:
             local2perfect_maps = []
             perfect2local_maps = []
             for iperm, perm in enumerate(algo.permutations):
-
                 local2perfect_map = {}
                 perfect2local_map = {}
                 permutations.append(perm)
@@ -1592,12 +1580,14 @@ class LocalGeometryFinder:
         """
         Returns the symmetry measures of the given coordination geometry "coordination_geometry" using separation
         facets to reduce the complexity of the system. Caller to the refined 2POINTS, 3POINTS and other ...
+
         Args:
             coordination_geometry: The coordination geometry to be investigated.
             separation_plane_algo: Separation Plane algorithm used.
             points_perfect: Points corresponding to the perfect geometry.
             nb_set: Neighbor set for this set of points. (used to store already computed separation planes)
             optimization: Optimization level (1 or 2).
+
         Returns:
             tuple: Continuous symmetry measures for the given coordination geometry for each plane and permutation
                    investigated, corresponding permutations, corresponding algorithms,

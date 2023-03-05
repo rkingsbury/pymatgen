@@ -11,12 +11,7 @@ It also includes the helper function, batch_write_vasp_input to generate an
 entire directory of vasp input files for running.
 """
 
-__author__ = "Shyue Ping Ong, Will Richards"
-__copyright__ = "Copyright 2012, The Materials Project"
-__version__ = "0.1"
-__maintainer__ = "Shyue Ping Ong"
-__email__ = "shyuep@gmail.com"
-__date__ = "Mar 4, 2012"
+from __future__ import annotations
 
 import os
 import re
@@ -24,6 +19,13 @@ from multiprocessing import Pool
 
 from pymatgen.alchemy.materials import TransformedStructure
 from pymatgen.io.vasp.sets import MPRelaxSet
+
+__author__ = "Shyue Ping Ong, Will Richards"
+__copyright__ = "Copyright 2012, The Materials Project"
+__version__ = "0.1"
+__maintainer__ = "Shyue Ping Ong"
+__email__ = "shyuep@gmail.com"
+__date__ = "Mar 4, 2012"
 
 
 class StandardTransmuter:
@@ -60,7 +62,6 @@ class StandardTransmuter:
                 Uses multiprocessing.Pool. Default is None, which implies
                 serial.
         """
-
         self.transformed_structures = transformed_structures
         self.ncores = ncores
         if transformations is not None:
@@ -120,10 +121,7 @@ class StandardTransmuter:
         if self.ncores and transformation.use_multiprocessing:
             with Pool(self.ncores) as p:
                 # need to condense arguments into single tuple to use map
-                z = map(
-                    lambda x: (x, transformation, extend_collection, clear_redo),
-                    self.transformed_structures,
-                )
+                z = ((x, transformation, extend_collection, clear_redo) for x in self.transformed_structures)
                 new_tstructs = p.map(_apply_transformation, z, 1)
                 self.transformed_structures = []
                 for ts in new_tstructs:
@@ -288,7 +286,6 @@ class CifTransmuter(StandardTransmuter):
             primitive: Same meaning as in __init__.
             extend_collection: Same meaning as in __init__.
         """
-
         allcifs = []
         for fname in filenames:
             with open(fname) as f:

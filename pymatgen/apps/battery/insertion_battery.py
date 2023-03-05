@@ -60,7 +60,6 @@ class InsertionElectrode(AbstractElectrode):
                 ComputedEntry.data['volume']. If entries provided are ComputedEntries,
                 must set strip_structures=False.
         """
-
         if strip_structures:
             ents = []
             for ient in entries:
@@ -299,8 +298,8 @@ class InsertionElectrode(AbstractElectrode):
             entry_discharge = pair.entry_discharge if adjacent_only else pair[1].entry_discharge
 
             def in_range(entry):
-                chg_frac = entry_charge.composition.get_atomic_fraction(ion)  # noqa: B023
-                dischg_frac = entry_discharge.composition.get_atomic_fraction(ion)  # noqa: B023
+                chg_frac = entry_charge.composition.get_atomic_fraction(ion)
+                dischg_frac = entry_discharge.composition.get_atomic_fraction(ion)
                 frac = entry.composition.get_atomic_fraction(ion)
                 return chg_frac <= frac <= dischg_frac
 
@@ -330,7 +329,6 @@ class InsertionElectrode(AbstractElectrode):
         Returns:
             A summary of this electrode's properties in dict format.
         """
-
         d = super().get_summary_dict(print_subelectrodes=print_subelectrodes)
 
         chg_comp = self.fully_charged_entry.composition

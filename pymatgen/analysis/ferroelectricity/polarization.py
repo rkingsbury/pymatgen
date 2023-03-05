@@ -47,6 +47,8 @@ determine the spontaneous polarization because it serves as a reference point.
 """
 
 
+from __future__ import annotations
+
 import numpy as np
 
 from pymatgen.core.lattice import Lattice
@@ -96,7 +98,6 @@ def get_total_ionic_dipole(structure, zval_dict):
     center (np.array with shape [3,1]) : dipole center used by VASP
     tiny (float) : tolerance for determining boundary of calculation.
     """
-
     tot_ionic = []
     for site in structure:
         zval = zval_dict[str(site.specie)]
@@ -112,6 +113,7 @@ class PolarizationLattice(Structure):
     def get_nearest_site(self, coords, site, r=None):
         """
         Given coords and a site, find closet site to coords.
+
         Args:
             coords (3x1 array): Cartesian coords of center of sphere
             site: site to find closest to coords
@@ -208,7 +210,6 @@ class Polarization:
         convert_to_muC_per_cm2: Convert from electron * Angstroms to microCoulomb
             per centimeter**2
         """
-
         if not convert_to_muC_per_cm2:
             return self.p_elecs, self.p_ions
 
@@ -269,7 +270,6 @@ class Polarization:
             microCoulomb per centimeter**2
         all_in_polar: convert polarization to be in polar (final structure) polarization lattice
         """
-
         p_elec, p_ion = self.get_pelecs_and_pions()
         p_tot = p_elec + p_ion
         p_tot = np.array(p_tot)
@@ -311,12 +311,9 @@ class Polarization:
             d = PolarizationLattice(lattice, ["C"], [np.array(frac_coord).ravel()])
             d_structs.append(d)
             site = d[0]
-            if i == 0:
-                # Adjust nonpolar polarization to be closest to zero.
-                # This is compatible with both a polarization of zero or a half quantum.
-                prev_site = [0, 0, 0]
-            else:
-                prev_site = sites[-1].coords
+            # Adjust nonpolar polarization to be closest to zero.
+            # This is compatible with both a polarization of zero or a half quantum.
+            prev_site = [0, 0, 0] if i == 0 else sites[-1].coords
             new_site = d.get_nearest_site(prev_site, site)
             sites.append(new_site[0])
 

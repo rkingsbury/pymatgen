@@ -9,7 +9,6 @@ Please consider citing one or both of the following papers if you use this
 code in your own work.
 
 References:
-
     (1) Richards, W. D., Miara, L. J., Wang, Y., Kim, J. C., &amp; Ceder, G. (2015).
     Interface stability in solid-state batteries. Chemistry of Materials, 28(1),
     266-273. https://doi.org/10.1021/acs.chemmater.5b04082
@@ -173,7 +172,7 @@ class InterfacialReactivity(MSONable):
             for i in reversed(critical_comp):
                 # Gets mixing ratio x at kinks.
                 c = self.pd.pd_coords(i)
-                x = np.linalg.norm(c - c2_coord) / np.linalg.norm(c1_coord - c2_coord)
+                x = float(np.linalg.norm(c - c2_coord) / np.linalg.norm(c1_coord - c2_coord))
                 # Modifies mixing ratio in case compositions self.comp1 and
                 # self.comp2 are not normalized.
                 x = x * n2 / (n1 + x * (n2 - n1))
@@ -207,7 +206,6 @@ class InterfacialReactivity(MSONable):
         Returns:
             Plot of reaction energies as a function of mixing ratio
         """
-
         if backend.lower() == "plotly":
             fig = self._get_plotly_figure()
         elif backend.lower() in ["matplotlib", "mpl", "plt"]:
@@ -350,7 +348,7 @@ class InterfacialReactivity(MSONable):
             y=energy,
             mode="lines",
             name="Lines",
-            line=dict(color="navy", dash="solid", width=5.0),
+            line={"color": "navy", "dash": "solid", "width": 5.0},
             hoverinfo="none",
         )
 
@@ -374,13 +372,13 @@ class InterfacialReactivity(MSONable):
             name="Reactions",
             hoverinfo="text",
             hovertext=labels,
-            marker=dict(
-                color="black",
-                size=12,
-                opacity=0.8,
-                line=dict(color="black", width=3),
-            ),
-            hoverlabel=dict(bgcolor="navy"),
+            marker={
+                "color": "black",
+                "size": 12,
+                "opacity": 0.8,
+                "line": {"color": "black", "width": 3},
+            },
+            hoverlabel={"bgcolor": "navy"},
         )
 
         min_label = f"{htmlify(str(rxn_min))} <br>\u0394E<sub>rxn</sub> = {round(e_min, 3)} eV/atom"  # type: ignore
@@ -391,7 +389,7 @@ class InterfacialReactivity(MSONable):
             mode="markers",
             hoverinfo="text",
             hovertext=[min_label],
-            marker=dict(color="darkred", size=24, symbol="star"),
+            marker={"color": "darkred", "size": 24, "symbol": "star"},
             name="Suggested reaction",
         )
 
@@ -426,7 +424,7 @@ class InterfacialReactivity(MSONable):
                 textcoords="offset points",
                 ha="right",
                 va="bottom",
-                arrowprops=dict(arrowstyle="->", connectionstyle="arc3,rad=0"),
+                arrowprops={"arrowstyle": "->", "connectionstyle": "arc3,rad=0"},
             )
 
         if self.norm:
@@ -463,7 +461,7 @@ class InterfacialReactivity(MSONable):
             products = ", ".join(
                 [htmlify(p.reduced_formula) for p in rxn.products if not np.isclose(rxn.get_coeff(p), 0)]
             )
-            annotation = dict(x=x_coord, y=y_coord, text=products, font=dict(size=18), ax=-25, ay=55)
+            annotation = {"x": x_coord, "y": y_coord, "text": products, "font": {"size": 18}, "ax": -25, "ay": 55}
             annotations.append(annotation)
         return annotations
 
@@ -618,7 +616,7 @@ class InterfacialReactivity(MSONable):
         """
         products = set()
         for _, _, _, react, _ in self.get_kinks():
-            products = products.union({k.reduced_formula for k in react.products})
+            products = products | {k.reduced_formula for k in react.products}
         return list(products)
 
 
@@ -663,7 +661,6 @@ class GrandPotentialInterfacialReactivity(InterfacialReactivity):
                 composition, convex hull energy will be used associated with a
                 warning message.
         """
-
         if not isinstance(grand_pd, GrandPotentialPhaseDiagram):
             raise ValueError("Please use the InterfacialReactivity class if using a regular phase diagram!")
 

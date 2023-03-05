@@ -14,7 +14,7 @@ from collections import Counter
 from enum import Enum
 from itertools import combinations, product
 from pathlib import Path
-from typing import Any, Callable, Literal, cast
+from typing import Any, Callable, Literal
 
 import numpy as np
 from monty.json import MSONable
@@ -419,7 +419,8 @@ class ElementBase(Enum):
     @property
     def icsd_oxidation_states(self) -> tuple[int, ...]:
         """Tuple of all oxidation states with at least 10 instances in
-        ICSD database AND at least 1% of entries for that element"""
+        ICSD database AND at least 1% of entries for that element
+        """
         return tuple(self._data.get("ICSD oxidation states", []))
 
     @property
@@ -466,10 +467,9 @@ class ElementBase(Enum):
         last_orbital = full_electron_config[-1]
         for n, l_symbol, ne in full_electron_config:
             l = L_symbols.lower().index(l_symbol)
-            if ne < (2 * l + 1) * 2:
-                valence.append((l, ne))
-            # check for full last shell (e.g. column 2)
-            elif (n, l_symbol, ne) == last_orbital and ne == (2 * l + 1) * 2 and len(valence) == 0:
+            if ne < (2 * l + 1) * 2 or (
+                (n, l_symbol, ne) == last_orbital and ne == (2 * l + 1) * 2 and len(valence) == 0
+            ):  # check for full last shell (e.g. column 2)
                 valence.append((l, ne))
         if len(valence) > 1:
             raise ValueError("Ambiguous valence")
@@ -516,7 +516,6 @@ class ElementBase(Enum):
             for ML in range(-L, L - 1, -1):
                 for MS in np.arange(S, -S + 1, 1):
                     if (ML, MS) in comb_counter:
-
                         comb_counter[(ML, MS)] -= 1
                         if comb_counter[(ML, MS)] == 0:
                             del comb_counter[(ML, MS)]
@@ -607,6 +606,7 @@ class ElementBase(Enum):
         Args:
             name: Long name of the element, e.g. 'Hydrogen' or
                   'Iron'. Not case-sensitive.
+
         Returns:
             Element with the name 'name'
         """
@@ -1110,9 +1110,9 @@ class Species(MSONable, Stringify):
         Sets a default sort order for atomic species by electronegativity,
         followed by oxidation state, followed by spin.
         """
-        if not hasattr(other, "X") or not hasattr(other, "symbol"):
+        if not isinstance(other, type(self)):
             return NotImplemented
-        other = cast(Species, other)
+
         x1 = float("inf") if self.X != self.X else self.X
         x2 = float("inf") if other.X != other.X else other.X
         if x1 != x2:
@@ -1141,7 +1141,6 @@ class Species(MSONable, Stringify):
         """
         Ionic radius of specie. Returns None if data is not present.
         """
-
         if self._oxi_state in self.ionic_radii:
             return self.ionic_radii[self._oxi_state]
         if self._oxi_state:
@@ -1178,7 +1177,6 @@ class Species(MSONable, Stringify):
         Raises:
             ValueError if species_string cannot be interpreted.
         """
-
         # e.g. Fe2+,spin=5
         # 1st group: ([A-Z][a-z]*)    --> Fe
         # 2nd group: ([0-9.]*)        --> "2"
@@ -1187,7 +1185,6 @@ class Species(MSONable, Stringify):
 
         m = re.search(r"([A-Z][a-z]*)([0-9.]*)([+\-]*)(.*)", species_string)
         if m:
-
             # parse symbol
             sym = m.group(1)
 
@@ -1246,7 +1243,6 @@ class Species(MSONable, Stringify):
             isotope (str): the isotope to get the quadrupole moment for
                 default is None, which gets the lowest mass isotope
         """
-
         quad_mom = self._el.nmr_quadrupole_moment
 
         if not quad_mom:

@@ -5,6 +5,7 @@
 Module for interfacing with phonopy, see https://atztogo.github.io/phonopy/
 """
 
+from __future__ import annotations
 
 import numpy as np
 from monty.dev import requires
@@ -35,21 +36,18 @@ except ImportError:
 
 
 @requires(Phonopy, "phonopy not installed!")
-def get_pmg_structure(phonopy_structure):
+def get_pmg_structure(phonopy_structure: PhonopyAtoms) -> Structure:
     """
     Convert a PhonopyAtoms object to pymatgen Structure object.
 
     Args:
         phonopy_structure (PhonopyAtoms): A phonopy structure object.
-
     """
-
     lattice = phonopy_structure.cell
     frac_coords = phonopy_structure.scaled_positions
     symbols = phonopy_structure.symbols
     masses = phonopy_structure.masses
-    mms = phonopy_structure.magnetic_moments
-    mms = mms or [0] * len(symbols)
+    mms = getattr(phonopy_structure, "magnetic_moments", None) or [0] * len(symbols)
 
     return Structure(
         lattice,
@@ -60,15 +58,13 @@ def get_pmg_structure(phonopy_structure):
 
 
 @requires(Phonopy, "phonopy not installed!")
-def get_phonopy_structure(pmg_structure):
+def get_phonopy_structure(pmg_structure: Structure) -> PhonopyAtoms:
     """
     Convert a pymatgen Structure object to a PhonopyAtoms object.
 
     Args:
         pmg_structure (pymatgen Structure): A Pymatgen structure object.
-
     """
-
     symbols = [site.specie.symbol for site in pmg_structure]
 
     return PhonopyAtoms(
@@ -85,7 +81,6 @@ def get_structure_from_dict(d):
     Adds "phonopy_masses" in the site_properties of the structures.
     Compatible with older phonopy versions.
     """
-
     species = []
     frac_coords = []
     masses = []
@@ -121,7 +116,6 @@ def eigvec_to_eigdispl(v, q, frac_coords, mass):
         frac_coords: the fractional coordinates of the atom
         mass: the mass of the atom
     """
-
     c = np.exp(2j * np.pi * np.dot(frac_coords, q)) / np.sqrt(mass)
 
     return c * v
@@ -146,7 +140,6 @@ def get_ph_bs_symm_line_from_dict(bands_dict, has_nac=False, labels_dict=None):
         labels_dict: dict that links a qpoint in frac coords to a label.
             Its value will replace the data contained in the band.yaml.
     """
-
     structure = get_structure_from_dict(bands_dict)
 
     qpts = []
@@ -163,7 +156,7 @@ def get_ph_bs_symm_line_from_dict(bands_dict, has_nac=False, labels_dict=None):
             if "eigenvector" in b:
                 eig_b = []
                 for i, eig_a in enumerate(b["eigenvector"]):
-                    v = np.zeros(3, np.complex)
+                    v = np.zeros(3, complex)
                     for x in range(3):
                         v[x] = eig_a[x][0] + eig_a[x][1] * 1j
                     eig_b.append(
@@ -268,7 +261,7 @@ def get_displaced_structures(pmg_structure, atom_disp=0.01, supercell_matrix=Non
         pmg_structure (Structure): A pymatgen structure object.
         atom_disp (float): Atomic displacement. Default is 0.01 $\\AA$.
         supercell_matrix (3x3 array): Scaling matrix for supercell.
-        yaml_fname (string): If not None, it represents the full path to
+        yaml_fname (str): If not None, it represents the full path to
             the outputting displacement yaml file, e.g. disp.yaml.
         **kwargs: Parameters used in Phonopy.generate_displacement method.
 
@@ -276,7 +269,6 @@ def get_displaced_structures(pmg_structure, atom_disp=0.01, supercell_matrix=Non
         A list of symmetrically inequivalent structures with displacements, in
         which the first element is the perfect supercell structure.
     """
-
     is_plusminus = kwargs.get("is_plusminus", "auto")
     is_diagonal = kwargs.get("is_diagonal", True)
     is_trigonal = kwargs.get("is_trigonal", False)
@@ -455,7 +447,6 @@ def get_gruneisenparameter(gruneisen_path, structure=None, structure_path=None) 
     Returns: GruneisenParameter object
 
     """
-
     gruneisen_dict = loadfn(gruneisen_path)
 
     if structure_path and structure is None:
@@ -472,10 +463,7 @@ def get_gruneisenparameter(gruneisen_path, structure=None, structure_path=None) 
     for p in gruneisen_dict["phonon"]:
         q = p["q-position"]
         qpts.append(q)
-        if "multiplicity" in p:
-            m = p["multiplicity"]
-        else:
-            m = 1
+        m = p["multiplicity"] if "multiplicity" in p else 1
         multiplicities.append(m)
         bands, gruneisenband = [], []
         for b in p["band"]:
@@ -530,7 +518,6 @@ def get_gs_ph_bs_symm_line_from_dict(
             These derivations occur because of very small frequencies
             (and therefore numerical inaccuracies) close to gamma.
     """
-
     if structure_path and structure is None:
         structure = Structure.from_file(structure_path)
     else:

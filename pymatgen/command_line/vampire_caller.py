@@ -91,10 +91,9 @@ class VampireCaller:
             mat_id_dict (dict): Maps sites to material id # for vampire
                 indexing.
 
-        TODO:
+        Todo:
             * Create input files in a temp folder that gets cleaned up after run terminates
         """
-
         self.mc_box_size = mc_box_size
         self.equil_timesteps = equil_timesteps
         self.mc_timesteps = mc_timesteps
@@ -158,7 +157,6 @@ class VampireCaller:
         self.output = VampireOutput(parsed_out, nmats, critical_temp)
 
     def _create_mat(self):
-
         structure = self.structure
         mat_name = self.mat_name
         magmoms = structure.site_properties["magmom"]
@@ -187,7 +185,6 @@ class VampireCaller:
                 if spin_down and not spin_up:
                     mat_id_dict[site] = nmats
                 if spin_up and spin_down:
-
                     # Check if spin up or down shows up first
                     m0 = magmoms[key[0]]
                     if m > 0 and m0 > 0:
@@ -238,7 +235,6 @@ class VampireCaller:
             f.write(mat_file)
 
     def _create_input(self):
-
         structure = self.structure
         mcbs = self.mc_box_size
         equil_timesteps = self.equil_timesteps
@@ -284,20 +280,11 @@ class VampireCaller:
         ]
 
         # Set temperature range and step size of simulation
-        if "start_t" in self.user_input_settings:
-            start_t = self.user_input_settings["start_t"]
-        else:
-            start_t = 0
+        start_t = self.user_input_settings["start_t"] if "start_t" in self.user_input_settings else 0
 
-        if "end_t" in self.user_input_settings:
-            end_t = self.user_input_settings["end_t"]
-        else:
-            end_t = 1500
+        end_t = self.user_input_settings["end_t"] if "end_t" in self.user_input_settings else 1500
 
-        if "temp_increment" in self.user_input_settings:
-            temp_increment = self.user_input_settings["temp_increment"]
-        else:
-            temp_increment = 25
+        temp_increment = self.user_input_settings.get("temp_increment", 25)
 
         input_script += [
             f"sim:minimum-temperature = {start_t}",
@@ -319,7 +306,6 @@ class VampireCaller:
             f.write(input_script)
 
     def _create_ucf(self):
-
         structure = self.structure
         mat_name = self.mat_name
 
@@ -369,10 +355,8 @@ class VampireCaller:
                 dist = round(c[-1], 2)
 
                 # Look up J_ij between the sites
-                if self.avg is True:  # Just use <J> estimate
-                    j_exc = self.hm.javg
-                else:
-                    j_exc = self.hm._get_j_exc(idx, j, dist)
+                # if case: Just use <J> estimate
+                j_exc = self.hm.javg if self.avg is True else self.hm._get_j_exc(idx, j, dist)
 
                 # Convert J_ij from meV to Joules
                 j_exc *= 1.6021766e-22
@@ -400,12 +384,11 @@ class VampireCaller:
             parsed_out (DataFrame): MSONable vampire output.
             critical_temp (float): Calculated critical temp.
         """
-
         names = ["T", "m_total"] + ["m_" + str(i) for i in range(1, nmats + 1)] + ["X_x", "X_y", "X_z", "X_m", "nan"]
 
         # Parsing vampire MC output
         df = pd.read_csv(vamp_stdout, sep="\t", skiprows=9, header=None, names=names)
-        df.drop("nan", axis=1, inplace=True)
+        df = df.drop("nan", axis=1)
 
         parsed_out = df.to_json()
 
@@ -428,7 +411,6 @@ class VampireOutput(MSONable):
             nmats (int): Number of distinct materials (1 for each specie and up/down spin).
             critical_temp (float): Monte Carlo Tc result.
         """
-
         self.parsed_out = parsed_out
         self.nmats = nmats
         self.critical_temp = critical_temp

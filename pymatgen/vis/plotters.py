@@ -5,6 +5,8 @@
 This module defines generic plotters.
 """
 
+from __future__ import annotations
+
 import importlib
 
 from pymatgen.util.plotting import pretty_plot
@@ -76,10 +78,7 @@ class SpectrumPlotter:
             dos_dict: dict of {label: Dos}
             key_sort_func: function used to sort the dos_dict keys.
         """
-        if key_sort_func:
-            keys = sorted(spectra_dict, key=key_sort_func)
-        else:
-            keys = list(spectra_dict)
+        keys = sorted(spectra_dict, key=key_sort_func) if key_sort_func else list(spectra_dict)
         for label in keys:
             self.add_spectra(label, spectra_dict[label])
 
@@ -92,7 +91,6 @@ class SpectrumPlotter:
                 determination.
             ylim: Specifies the y-axis limits.
         """
-
         plt = pretty_plot(12, 8)
         base = 0.0
         i = 0

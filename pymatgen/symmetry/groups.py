@@ -57,10 +57,7 @@ class SymmetryGroup(Sequence, Stringify, metaclass=ABCMeta):
         if not isinstance(item, SymmOp):
             return NotImplemented
 
-        for i in self.symmetry_ops:
-            if np.allclose(i.affine_matrix, item.affine_matrix):
-                return True
-        return False
+        return any(np.allclose(i.affine_matrix, item.affine_matrix) for i in self.symmetry_ops)
 
     def __hash__(self) -> int:
         return len(self)
@@ -170,7 +167,7 @@ class PointGroup(SymmetryGroup):
             new_ops = gen_ops
         return symm_ops
 
-    def get_orbit(self, p: ArrayLike, tol: float = 1e-5) -> list[ArrayLike]:
+    def get_orbit(self, p: ArrayLike, tol: float = 1e-5) -> list[np.ndarray]:
         """
         Returns the orbit for a point.
 
@@ -183,7 +180,7 @@ class PointGroup(SymmetryGroup):
         Returns:
             ([array]) Orbit for point.
         """
-        orbit: list[ArrayLike] = []
+        orbit: list[np.ndarray] = []
         for o in self.symmetry_ops:
             pp = o.operate(p)
             if not in_array_list(orbit, pp, tol=tol):
@@ -299,7 +296,7 @@ class SpaceGroup(SymmetryGroup):
 
             self._symmetry_ops = None
 
-    def _generate_full_symmetry_ops(self) -> list[SymmOp]:
+    def _generate_full_symmetry_ops(self) -> np.ndarray:
         symm_ops = np.array(self.generators)
         for op in symm_ops:
             op[0:3, 3] = np.mod(op[0:3, 3], 1)
@@ -315,7 +312,7 @@ class SpaceGroup(SymmetryGroup):
                     if not in_array_list(symm_ops, op):
                         gen_ops.append(op)
                         symm_ops = np.append(symm_ops, [op], axis=0)
-            new_ops = gen_ops
+            new_ops = gen_ops  # type: ignore[assignment]
         assert len(symm_ops) == self.order
         return symm_ops
 
@@ -367,7 +364,7 @@ class SpaceGroup(SymmetryGroup):
             self._symmetry_ops = {SymmOp(m) for m in self._generate_full_symmetry_ops()}
         return self._symmetry_ops
 
-    def get_orbit(self, p: ArrayLike, tol: float = 1e-5) -> list[ArrayLike]:
+    def get_orbit(self, p: ArrayLike, tol: float = 1e-5) -> list[np.ndarray]:
         """
         Returns the orbit for a point.
 
@@ -380,7 +377,7 @@ class SpaceGroup(SymmetryGroup):
         Returns:
             ([array]) Orbit for point.
         """
-        orbit: list[ArrayLike] = []
+        orbit: list[np.ndarray] = []
         for o in self.symmetry_ops:
             pp = o.operate(p)
             pp = np.mod(np.round(pp, decimals=10), 1)
@@ -403,9 +400,9 @@ class SpaceGroup(SymmetryGroup):
         """
         from pymatgen.core.operations import SymmOp
 
-        orbit: list[ArrayLike] = [np.array(p, dtype=float)]
+        orbit: list[np.ndarray] = [np.array(p, dtype=float)]
         identity = SymmOp.from_rotation_and_translation(np.eye(3), np.zeros(3))
-        generators: list[ArrayLike] = [identity]
+        generators: list[np.ndarray] = [identity]
         for o in self.symmetry_ops:
             pp = o.operate(p)
             pp = np.mod(np.round(pp, decimals=10), 1)
@@ -440,26 +437,7 @@ class SpaceGroup(SymmetryGroup):
             and (
                 self.symbol.endswith("H")
                 or self.int_number
-                in [
-                    143,
-                    144,
-                    145,
-                    147,
-                    149,
-                    150,
-                    151,
-                    152,
-                    153,
-                    154,
-                    156,
-                    157,
-                    158,
-                    159,
-                    162,
-                    163,
-                    164,
-                    165,
-                ]
+                in [143, 144, 145, 147, 149, 150, 151, 152, 153, 154, 156, 157, 158, 159, 162, 163, 164, 165]
             )
         ):
             a = abc[0]
@@ -605,7 +583,7 @@ def sg_symbol_from_int_number(int_number: int, hexagonal: bool = True) -> str:
     return syms.pop()
 
 
-def in_array_list(array_list: list[ArrayLike], a: ArrayLike, tol: float = 1e-5) -> bool:
+def in_array_list(array_list: list[np.ndarray] | np.ndarray, arr: np.ndarray, tol: float = 1e-5) -> bool:
     """
     Extremely efficient nd-array comparison using numpy's broadcasting. This
     function checks if a particular array a, is present in a list of arrays.
@@ -622,7 +600,7 @@ def in_array_list(array_list: list[ArrayLike], a: ArrayLike, tol: float = 1e-5) 
     """
     if len(array_list) == 0:
         return False
-    axes = tuple(range(1, a.ndim + 1))
+    axes = tuple(range(1, arr.ndim + 1))
     if not tol:
-        return np.any(np.all(np.equal(array_list, a[None, :]), axes))
-    return np.any(np.sum(np.abs(array_list - a[None, :]), axes) < tol)
+        return any(np.all(array_list == arr[None, :], axes))
+    return any(np.sum(np.abs(array_list - arr[None, :]), axes) < tol)

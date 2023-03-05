@@ -4,6 +4,8 @@ Note that not all the features of Abinit are supported by BasicAbinitInput.
 For a more comprehensive implementation, use the AbinitInput object provided by AbiPy.
 """
 
+from __future__ import annotations
+
 import abc
 import copy
 import json
@@ -22,7 +24,6 @@ from pymatgen.core.structure import Structure
 from pymatgen.io.abinit import abiobjects as aobj
 from pymatgen.io.abinit.pseudos import Pseudo, PseudoTable
 from pymatgen.io.abinit.variable import InputVariable
-from pymatgen.util.serialization import pmg_serialize
 
 logger = logging.getLogger(__file__)
 
@@ -108,9 +109,9 @@ del T
 
 
 # Default values used if user does not specify them
-_DEFAULTS = dict(
-    kppa=1000,
-)
+_DEFAULTS = {
+    "kppa": 1000,
+}
 
 
 def as_structure(obj):
@@ -210,11 +211,9 @@ def _find_scf_nband(structure, pseudos, electrons, spinat=None):
     # If nband is too small we may kill the job, increase nband and restart
     # but this change could cause problems in the other steps of the calculation
     # if the change is not propagated e.g. phonons in metals.
-    if smearing:
-        # metallic occupation
-        nband = max(np.ceil(nband * 1.2), nband + 10)
-    else:
-        nband = max(np.ceil(nband * 1.1), nband + 4)
+
+    # metallic occupation
+    nband = max(np.ceil(nband * 1.2), nband + 10) if smearing else max(np.ceil(nband * 1.1), nband + 4)
 
     # Increase number of bands based on the starting magnetization
     if nsppol == 2 and spinat is not None:
@@ -559,10 +558,9 @@ def calc_shiftk(structure, symprec: float = 0.01, angle_tolerance=5):
             shiftk = [0.0, 0.0, 0.0]
             shiftk[hex_ax] = 0.5
 
-        elif lattice_type == "tetragonal":
-            if "I" in spg_symbol:
-                # BCT
-                shiftk = [0.25, 0.25, 0.25, -0.25, -0.25, -0.25]
+        elif lattice_type == "tetragonal" and "I" in spg_symbol:
+            # BCT
+            shiftk = [0.25, 0.25, 0.25, -0.25, -0.25, -0.25]
 
     if shiftk is None:
         # Use default value.
@@ -623,7 +621,7 @@ class AbstractInput(MutableMapping, metaclass=abc.ABCMeta):
             os.makedirs(dirname)
 
         # Write the input file.
-        with open(filepath, "wt") as fh:
+        with open(filepath, "w") as fh:
             fh.write(str(self))
 
     def deepcopy(self):
@@ -636,7 +634,6 @@ class AbstractInput(MutableMapping, metaclass=abc.ABCMeta):
         Return dict with the variables added to the input.
 
         Example:
-
             input.set_vars(ecut=10, ionmov=3)
         """
         kwargs.update(dict(*args))
@@ -650,7 +647,6 @@ class AbstractInput(MutableMapping, metaclass=abc.ABCMeta):
         Return dict with the variables added to the input.
 
         Example:
-
             input.set_vars(ecut=10, ionmov=3)
         """
         kwargs.update(dict(*args))
@@ -769,7 +765,6 @@ class BasicAbinitInput(AbstractInput, MSONable):
         if comment is not None:
             self.set_comment(comment)
 
-    @pmg_serialize
     def as_dict(self):
         """
         JSON interface used in pymatgen for easier serialization.
@@ -781,12 +776,14 @@ class BasicAbinitInput(AbstractInput, MSONable):
                 value = value.tolist()
             abi_args.append((key, value))
 
-        return dict(
-            structure=self.structure.as_dict(),
-            pseudos=[p.as_dict() for p in self.pseudos],
-            comment=self.comment,
-            abi_args=abi_args,
-        )
+        return {
+            "@module": type(self).__module__,
+            "@class": type(self).__name__,
+            "structure": self.structure.as_dict(),
+            "pseudos": [p.as_dict() for p in self.pseudos],
+            "comment": self.comment,
+            "abi_args": abi_args,
+        }
 
     @property
     def vars(self):
@@ -931,7 +928,6 @@ class BasicAbinitInput(AbstractInput, MSONable):
             kptbounds: k-points defining the path in k-space.
                 If None, we use the default high-symmetry k-path defined in the pymatgen database.
         """
-
         if kptbounds is None:
             from pymatgen.symmetry.bandstructure import HighSymmKpath
 
@@ -1317,5 +1313,5 @@ class BasicMultiDataset:
         """
         root, ext = os.path.splitext(filepath)
         for i, inp in enumerate(self):
-            p = root + f"DS{i}" + ext
+            p = f"{root}DS{i}" + ext
             inp.write(filepath=p)

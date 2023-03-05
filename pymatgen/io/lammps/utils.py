@@ -5,6 +5,8 @@
 This module defines utility classes and functions.
 """
 
+from __future__ import annotations
+
 import os
 import tempfile
 from shutil import which
@@ -267,9 +269,9 @@ class PackmolRunner:
         Write the packmol input file to the input directory.
 
         Args:
-            input_dir (string): path to the input directory
+            input_dir (str): path to the input directory
         """
-        with open(os.path.join(input_dir, self.input_file), "wt", encoding="utf-8") as inp:
+        with open(os.path.join(input_dir, self.input_file), "w", encoding="utf-8") as inp:
             for k, v in self.control_params.items():
                 inp.write(f"{k} {self._format_param_val(v)}\n")
             # write the structures of the constituent molecules to file and set
@@ -310,9 +312,10 @@ class PackmolRunner:
         """
         with tempfile.TemporaryDirectory() as scratch_dir:
             self._write_input(input_dir=scratch_dir)
-            with open(os.path.join(scratch_dir, self.input_file)) as packmol_input:
-                with Popen(self.packmol_bin, stdin=packmol_input, stdout=PIPE, stderr=PIPE) as p:
-                    (stdout, stderr) = p.communicate()
+            with open(os.path.join(scratch_dir, self.input_file)) as packmol_input, Popen(
+                self.packmol_bin, stdin=packmol_input, stdout=PIPE, stderr=PIPE
+            ) as p:
+                (stdout, stderr) = p.communicate()
             output_file = os.path.join(self.control_params["output"])
             if os.path.isfile(output_file):
                 packed_mol = BabelMolAdaptor.from_file(output_file, self.control_params["filetype"])
@@ -328,7 +331,6 @@ class PackmolRunner:
         """
         dump the molecule into pdb file with custom residue name and number.
         """
-
         # ugly hack to get around the openbabel issues with inconsistent
         # residue labelling.
         scratch = tempfile.gettempdir()
@@ -372,7 +374,6 @@ class PackmolRunner:
         Returns:
             Molecule object
         """
-
         restore_site_props = residue_name is not None
 
         if restore_site_props and not hasattr(self, "map_residue_to_mol"):
@@ -387,7 +388,6 @@ class PackmolRunner:
         mol = Molecule(zs, coords)
 
         if restore_site_props:
-
             props = []
 
             ref = self.map_residue_to_mol[residue_name].copy()
@@ -416,7 +416,6 @@ class PackmolRunner:
         Returns:
             Molecule
         """
-
         # only for pdb
         if not self.control_params["filetype"] == "pdb":
             raise ValueError()
@@ -449,8 +448,8 @@ class LammpsRunner:
     def __init__(self, input_filename="lammps.in", bin="lammps"):
         """
         Args:
-            input_filename (string): input file name
-            bin (string): command to run, excluding the input file name
+            input_filename (str): input file name
+            bin (str): command to run, excluding the input file name
         """
         self.lammps_bin = bin.split()
         if not which(self.lammps_bin[-1]):
@@ -466,7 +465,7 @@ class LammpsRunner:
         """
         Write the input/data files and run LAMMPS.
         """
-        lammps_cmd = self.lammps_bin + ["-in", self.input_filename]
+        lammps_cmd = [*self.lammps_bin, "-in", self.input_filename]
         print(f"Running: {' '.join(lammps_cmd)}")
         with Popen(lammps_cmd, stdout=PIPE, stderr=PIPE) as p:
             (stdout, stderr) = p.communicate()

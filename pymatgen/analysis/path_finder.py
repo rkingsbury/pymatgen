@@ -165,8 +165,9 @@ class NEBPathfinder:
         they are kept fixed.
 
         Args:
-            start, end: Endpoints of the path calculation given in discrete
-                coordinates with respect to the grid in V
+            start: Starting point of the path calculation given in discrete
+                coordinates with respect to the grid in V.
+            end: Endpoints of the path calculation.
             V: potential field through which to calculate the path
             n_images: number of images used to define the path. In general
                 anywhere from 20 to 40 seems to be good.
@@ -176,8 +177,9 @@ class NEBPathfinder:
                 slow. h=10 diverges with large gradients but for the types of
                 gradients seen in CHGCARs, works pretty reliably
             k: Elastic constant for the band (in real units, not discrete)
-            min_iter, max_iter: Number of optimization steps the string will
-                take before exiting (even if unconverged)
+            min_iter: Minimum number of iterations to perform. Defaults to 100.
+            max_iter: Number of optimization steps the string will
+                take before exiting (even if unconverged). Defaults to 10000.
             max_tol: Convergence threshold such that if the string moves by
                 less than max_tol in a step, and at least min_iter steps have
                 passed, the algorithm will terminate. Depends strongly on the
@@ -193,10 +195,7 @@ class NEBPathfinder:
         # logger.debug("Getting path from {} to {} (coords wrt V grid)".format(start, end))
 
         # Set parameters
-        if not dr:
-            dr = np.array([1.0 / V.shape[0], 1.0 / V.shape[1], 1.0 / V.shape[2]])
-        else:
-            dr = np.array(dr, dtype=float)
+        dr = np.array([1.0 / V.shape[0], 1.0 / V.shape[1], 1.0 / V.shape[2]]) if not dr else np.array(dr, dtype=float)
         keff = k * dr * n_images
         h0 = h
 
@@ -224,14 +223,11 @@ class NEBPathfinder:
 
         # Evolve string
         for step in range(0, max_iter):
-            if step > min_iter:
-                # Gradually decay step size to prevent oscillations
-                h = h0 * np.exp(-2.0 * (step - min_iter) / max_iter)
-            else:
-                h = h0
+            # Gradually decay step size to prevent oscillations
+            h = h0 * np.exp(-2.0 * (step - min_iter) / max_iter) if step > min_iter else h0
             # Calculate forces acting on string
             d = V.shape
-            s0 = s
+            s0 = s.copy()  # store copy for endpoint fixing below (fixes GH 2732)
             edV = np.array(
                 [
                     [

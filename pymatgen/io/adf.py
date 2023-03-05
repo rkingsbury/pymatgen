@@ -2,6 +2,8 @@
 IO for ADF files.
 """
 
+from __future__ import annotations
+
 import os
 import re
 from typing import Generator
@@ -15,7 +17,7 @@ from pymatgen.core.structure import Molecule
 __author__ = "Xin Chen, chenxin13@mails.tsinghua.edu.cn"
 
 
-def is_numeric(s):
+def is_numeric(s) -> bool:
     """
     Return True is the string ``s`` is a numeric string.
 
@@ -24,7 +26,7 @@ def is_numeric(s):
     s : str
         A string.
 
-    Returns
+    Returns:
     -------
     res : bool
         If True, ``s`` is a numeric string and can be converted to an int or a
@@ -118,7 +120,7 @@ class AdfKey(MSONable):
         subkeys : Sized
             The subkeys for this key.
 
-        Raises
+        Raises:
         ------
         ValueError
             If elements in ``subkeys`` are not ``AdfKey`` objects.
@@ -148,7 +150,7 @@ class AdfKey(MSONable):
             return s.strip()
         return ""
 
-    def is_block_key(self):
+    def is_block_key(self) -> bool:
         """
         Return True if this key is a block key.
         """
@@ -168,7 +170,7 @@ class AdfKey(MSONable):
         """
         Return the string representation of this ``AdfKey``.
 
-        Notes
+        Notes:
         -----
         If this key is 'Atoms' and the coordinates are in Cartesian form, a
         different string format will be used.
@@ -195,7 +197,7 @@ class AdfKey(MSONable):
             s += "END\n"
         return s
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, AdfKey):
             return False
         return str(self) == str(other)
@@ -209,7 +211,7 @@ class AdfKey(MSONable):
         subkey : str or AdfKey
             A key name or an AdfKey object.
 
-        Returns
+        Returns:
         -------
         has : bool
             True if this key contains the given key. Otherwise False.
@@ -220,9 +222,8 @@ class AdfKey(MSONable):
             key = subkey.key
         else:
             raise ValueError("The subkey should be an AdfKey or a string!")
-        if len(self.subkeys) > 0:
-            if key in map(lambda k: k.key, self.subkeys):
-                return True
+        if len(self.subkeys) > 0 and key in (k.key for k in self.subkeys):
+            return True
         return False
 
     def add_subkey(self, subkey):
@@ -234,7 +235,7 @@ class AdfKey(MSONable):
         subkey : AdfKey
             A new subkey.
 
-        Notes
+        Notes:
         -----
         Duplicate check will not be performed if this is an 'Atoms' block.
         """
@@ -267,7 +268,7 @@ class AdfKey(MSONable):
             A new option to add. This must have the same format with existing
             options.
 
-        Raises
+        Raises:
         ------
         TypeError
             If the format of the given ``option`` is different.
@@ -289,7 +290,7 @@ class AdfKey(MSONable):
         option : str or int
             The name (str) or index (int) of the option to remove.
 
-        Raises
+        Raises:
         ------
         TypeError
             If the option has a wrong type.
@@ -316,17 +317,14 @@ class AdfKey(MSONable):
         option : str
             The option.
 
-        Returns
+        Returns:
         -------
         has : bool
             True if the option can be found. Otherwise False will be returned.
         """
         if len(self.options) == 0:
             return False
-        for op in self.options:
-            if (self._sized_op and op[0] == option) or (op == option):
-                return True
-        return False
+        return any(self._sized_op and op[0] == option or op == option for op in self.options)
 
     def as_dict(self):
         """
@@ -355,7 +353,7 @@ class AdfKey(MSONable):
         d : dict
             A dict of saved attributes.
 
-        Returns
+        Returns:
         -------
         adfkey : AdfKey
             An AdfKey object recovered from the JSON dict ``d``.
@@ -363,10 +361,7 @@ class AdfKey(MSONable):
         key = d.get("name")
         options = d.get("options", None)
         subkey_list = d.get("subkeys", [])
-        if len(subkey_list) > 0:
-            subkeys = list(map(lambda k: AdfKey.from_dict(k), subkey_list))
-        else:
-            subkeys = None
+        subkeys = [AdfKey.from_dict(k) for k in subkey_list] if len(subkey_list) > 0 else None
         return cls(key, options, subkeys)
 
     @staticmethod
@@ -379,32 +374,29 @@ class AdfKey(MSONable):
         string : str
             A string.
 
-        Returns
+        Returns:
         -------
         adfkey : AdfKey
             An AdfKey object recovered from the string.
 
-        Raises
+        Raises:
         ------
         ValueError
             Currently nested subkeys are not supported. If ``subend`` was found
             a ValueError would be raised.
 
-        Notes
+        Notes:
         -----
         Only the first block key will be returned.
         """
 
-        def is_float(s):
+        def is_float(s) -> bool:
             return "." in s or "E" in s or "e" in s
 
         if string.find("\n") == -1:
             el = string.split()
             if len(el) > 1:
-                if string.find("=") != -1:
-                    options = list(map(lambda s: s.split("="), el[1:]))
-                else:
-                    options = el[1:]
+                options = [s.split("=") for s in el[1:]] if string.find("=") != -1 else el[1:]
                 for i, op in enumerate(options):
                     if isinstance(op, list) and is_numeric(op[1]):
                         op[1] = float(op[1]) if is_float(op[1]) else int(op[1])
@@ -433,15 +425,15 @@ class AdfKey(MSONable):
                 return key
             elif key is not None:
                 key.add_subkey(AdfKey.from_string(line))
-        else:
-            raise Exception("IncompleteKey: 'END' is missing!")
+
+        raise Exception("IncompleteKey: 'END' is missing!")
 
 
 class AdfTask(MSONable):
     """
     Basic task for ADF. All settings in this class are independent of molecules.
 
-    Notes
+    Notes:
     -----
     Unlike other quantum chemistry packages (NWChem, Gaussian, ...), ADF does
     not support calculating force/gradient.
@@ -544,7 +536,7 @@ class AdfTask(MSONable):
         geo_subkeys : Sized
             User-defined subkeys for the block 'Geometry'.
 
-        Notes
+        Notes:
         -----
         Most of the run types of ADF are specified in the Geometry block except
         the 'AnalyticFreq'.
@@ -606,7 +598,7 @@ class AdfTask(MSONable):
         d : dict
             A dict of saved attributes.
 
-        Returns
+        Returns:
         -------
         task : AdfTask
             An AdfTask object recovered from the JSON dict ``d``.
@@ -654,7 +646,6 @@ class AdfInput:
         inpfile : str
             The name where the input file will be saved.
         """
-
         mol_blocks = []
         atom_block = AdfKey("Atoms", options=["cartesian"])
         for site in molecule:
@@ -681,7 +672,7 @@ class AdfOutput:
     """
     A basic ADF output file parser.
 
-    Attributes
+    Attributes:
     ----------
     is_failed : bool
         True is the ADF job is terminated without success. Otherwise False.
@@ -760,7 +751,7 @@ class AdfOutput:
         sites : list
             A list of sites.
 
-        Returns
+        Returns:
         -------
         mol : Molecule
             A ``Molecule`` object.
@@ -771,7 +762,6 @@ class AdfOutput:
         """
         Parse the formatted logfile.
         """
-
         cycle_patt = re.compile(r"Coordinates\sin\sGeometry\sCycle\s(\d+)")
         coord_patt = re.compile(r"\s+([0-9]+)\.([A-Za-z]+)" + 3 * r"\s+([-\.0-9]+)")
         energy_patt = re.compile(r"<.*>\s<.*>\s+current\senergy\s+([-\.0-9]+)\sHartree")

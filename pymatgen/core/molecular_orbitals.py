@@ -6,6 +6,8 @@ This module implements a MolecularOrbital class to represent band character in
 solids. Useful for predicting PDOS character from structural information.
 """
 
+from __future__ import annotations
+
 from itertools import chain, combinations
 
 from pymatgen.core.composition import Composition
@@ -91,6 +93,7 @@ class MolecularOrbitals:
     def obtain_band_edges(self):
         """
         Fill up the atomic orbitals with available electrons.
+
         Returns:
             HOMO, LUMO, and whether it's a metal.
         """

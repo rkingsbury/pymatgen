@@ -5,12 +5,7 @@
 Script to visualize the model coordination environments
 """
 
-__author__ = "David Waroquiers"
-__copyright__ = "Copyright 2012, The Materials Project"
-__version__ = "2.0"
-__maintainer__ = "David Waroquiers"
-__email__ = "david.waroquiers@gmail.com"
-__date__ = "Feb 20, 2016"
+from __future__ import annotations
 
 import numpy as np
 
@@ -20,6 +15,13 @@ from pymatgen.analysis.chemenv.coordination_environments.coordination_geometries
 )
 from pymatgen.analysis.chemenv.utils.coordination_geometry_utils import Plane
 from pymatgen.analysis.chemenv.utils.scripts_utils import visualize
+
+__author__ = "David Waroquiers"
+__copyright__ = "Copyright 2012, The Materials Project"
+__version__ = "2.0"
+__maintainer__ = "David Waroquiers"
+__email__ = "david.waroquiers@gmail.com"
+__date__ = "Feb 20, 2016"
 
 if __name__ == "__main__":
     print(
@@ -55,7 +57,7 @@ if __name__ == "__main__":
             print()
         # Visualize the separation plane of a given algorithm
         sepplane = False
-        if any([algo.algorithm_type == SEPARATION_PLANE for algo in cg.algorithms]):
+        if any(algo.algorithm_type == SEPARATION_PLANE for algo in cg.algorithms):
             test = input("Enter index of the algorithm for which you want to visualize the plane : ")
             if test != "":
                 try:

@@ -5,6 +5,8 @@
 Classes for reading/manipulating/writing exciting input files.
 """
 
+from __future__ import annotations
+
 import xml.etree.ElementTree as ET
 
 import numpy as np
@@ -55,7 +57,6 @@ class ExcitingInput(MSONable):
             lockxyz (Nx3 array): bool values for selective dynamics,
                 where N is number of sites. Defaults to None.
         """
-
         if structure.is_ordered:
             site_properties = {}
             if lockxyz:
@@ -84,7 +85,6 @@ class ExcitingInput(MSONable):
         """
         Reads the exciting input from a string
         """
-
         root = ET.fromstring(data)
         speciesnode = root.find("structure").iter("species")
         elements = []
@@ -130,16 +130,10 @@ class ExcitingInput(MSONable):
             cartesian = False
         # get the scale attribute
         scale_in = root.find("structure").find("crystal").get("scale")
-        if scale_in:
-            scale = float(scale_in) * ExcitingInput.bohr2ang
-        else:
-            scale = ExcitingInput.bohr2ang
+        scale = float(scale_in) * ExcitingInput.bohr2ang if scale_in else ExcitingInput.bohr2ang
         # get the stretch attribute
         stretch_in = root.find("structure").find("crystal").get("stretch")
-        if stretch_in:
-            stretch = np.array([float(a) for a in stretch_in])
-        else:
-            stretch = np.array([1.0, 1.0, 1.0])
+        stretch = np.array([float(a) for a in stretch_in]) if stretch_in else np.array([1.0, 1.0, 1.0])
         # get basis vectors and scale them accordingly
         basisnode = root.find("structure").find("crystal").iter("basevect")
         for vect in basisnode:

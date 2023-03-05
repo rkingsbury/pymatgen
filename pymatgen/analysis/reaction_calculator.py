@@ -182,9 +182,9 @@ class BalancedReaction(MSONable):
         """
         return self.normalized_repr_and_factor()[0]
 
-    def __eq__(self, other):
-        if other is None:
-            return False
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, type(self)):
+            return NotImplemented
         for comp in self._all_comp:
             coeff2 = other.get_coeff(comp) if comp in other._all_comp else 0
             if abs(self.get_coeff(comp) - coeff2) > self.TOLERANCE:
@@ -440,9 +440,9 @@ class ComputedReaction(Reaction):
         self._reactant_entries = reactant_entries
         self._product_entries = product_entries
         self._all_entries = reactant_entries + product_entries
-        reactant_comp = [e.composition.get_reduced_composition_and_factor()[0] for e in reactant_entries]
+        reactant_comp = [e.composition.reduced_composition for e in reactant_entries]
 
-        product_comp = [e.composition.get_reduced_composition_and_factor()[0] for e in product_entries]
+        product_comp = [e.composition.reduced_composition for e in product_entries]
 
         super().__init__(list(reactant_comp), list(product_comp))
 
@@ -469,7 +469,7 @@ class ComputedReaction(Reaction):
         calc_energies = {}
 
         for entry in self._reactant_entries + self._product_entries:
-            (comp, factor) = entry.composition.get_reduced_composition_and_factor()
+            comp, factor = entry.composition.get_reduced_composition_and_factor()
             calc_energies[comp] = min(calc_energies.get(comp, float("inf")), entry.energy / factor)
 
         return self.calculate_energy(calc_energies)
@@ -480,11 +480,10 @@ class ComputedReaction(Reaction):
         Calculates the uncertainty in the reaction energy based on the uncertainty in the
         energies of the products and reactants
         """
-
         calc_energies = {}
 
         for entry in self._reactant_entries + self._product_entries:
-            (comp, factor) = entry.composition.get_reduced_composition_and_factor()
+            comp, factor = entry.composition.get_reduced_composition_and_factor()
             energy_ufloat = ufloat(entry.energy, entry.correction_uncertainty)
             calc_energies[comp] = min(calc_energies.get(comp, float("inf")), energy_ufloat / factor)
 

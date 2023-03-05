@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-
+from __future__ import annotations
 
 import copy
 import json
@@ -32,9 +31,9 @@ from pymatgen.core.structure import Structure
 from pymatgen.util.testing import PymatgenTest
 
 try:
-    import bson
+    import bson  # type: ignore
 except ModuleNotFoundError:
-    bson = None
+    bson = None  # type: ignore
 
 __author__ = "waroquiers"
 
@@ -87,8 +86,8 @@ class ConnectedComponentTest(PymatgenTest):
         assert isinstance(mygraph, nx.MultiGraph)  # Check that it is indeed the same type of graph
 
         cc2 = ConnectedComponent(graph=mygraph)
-        assert set(list(mygraph.nodes())) == set(list(cc2.graph.nodes()))
-        assert set(list(mygraph.edges())) == set(list(cc2.graph.edges()))
+        assert set(mygraph.nodes()) == set(cc2.graph.nodes())
+        assert set(mygraph.edges()) == set(cc2.graph.edges())
         assert len(cc2.graph) == 6
 
     def test_serialization(self):
@@ -144,7 +143,7 @@ class ConnectedComponentTest(PymatgenTest):
         for loaded_cc in loaded_cc_list:
             assert loaded_cc.graph.number_of_nodes() == 3
             assert loaded_cc.graph.number_of_edges() == 2
-            assert set(list(cc.graph.nodes())) == set(list(loaded_cc.graph.nodes()))
+            assert set(cc.graph.nodes()) == set(loaded_cc.graph.nodes())
             assert sorted_edges == sorted(sorted(e) for e in loaded_cc.graph.edges())
 
             for e in sorted_edges:
@@ -467,7 +466,7 @@ class ConnectedComponentTest(PymatgenTest):
 
     def test_real_systems(self):
         # Initialize geometry and connectivity finders
-        strat = SimplestChemenvStrategy()
+        strategy = SimplestChemenvStrategy()
         lgf = LocalGeometryFinder()
         cf = ConnectivityFinder()
 
@@ -475,7 +474,7 @@ class ConnectedComponentTest(PymatgenTest):
         struct = self.get_structure("LiFePO4")
         lgf.setup_structure(structure=struct)
         se = lgf.compute_structure_environments(only_atoms=["Li", "Fe", "P"], maximum_distance_factor=1.2)
-        lse = LightStructureEnvironments.from_structure_environments(strategy=strat, structure_environments=se)
+        lse = LightStructureEnvironments.from_structure_environments(strategy=strategy, structure_environments=se)
         # Make sure the initial structure and environments are correct
         for isite in range(0, 4):
             assert lse.structure[isite].specie.symbol == "Li"
@@ -784,7 +783,7 @@ Node #11 P (T:4), connected to :
         struct = Structure.from_file(os.path.join(self.TEST_FILES_DIR, "Li4Fe3Mn1(PO4)4.cif"))
         lgf.setup_structure(structure=struct)
         se = lgf.compute_structure_environments(only_atoms=["Li", "Fe", "Mn", "P"], maximum_distance_factor=1.2)
-        lse = LightStructureEnvironments.from_structure_environments(strategy=strat, structure_environments=se)
+        lse = LightStructureEnvironments.from_structure_environments(strategy=strategy, structure_environments=se)
         # Make sure the initial structure and environments are correct
         for isite in range(0, 4):
             assert lse.structure[isite].specie.symbol == "Li"

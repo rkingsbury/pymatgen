@@ -5,11 +5,14 @@
 This module contains classes to wrap Python VTK to make nice molecular plots.
 """
 
+from __future__ import annotations
+
 import itertools
 import math
 import os
 import subprocess
 import time
+from typing import Sequence
 
 import numpy as np
 
@@ -92,7 +95,6 @@ class StructureVis:
         self.ren_win.AddRenderer(self.ren)
         self.ren.SetBackground(1, 1, 1)
         self.title = "Structure Visualizer"
-        # create a renderwindowinteractor
         self.iren = vtk.vtkRenderWindowInteractor()
         self.iren.SetRenderWindow(self.ren_win)
         self.mapper_map = {}
@@ -137,12 +139,9 @@ class StructureVis:
         Save render window to an image.
 
         Arguments:
-            filename:
-                filename to save to. Defaults to image.png.
-            magnification:
-                magnification. Use it to render high res images.
-            image_format:
-                choose between jpeg, png. Png is the default.
+            filename: file to save to. Defaults to image.png.
+            magnification: Use it to render high res images.
+            image_format: choose between jpeg, png. Defaults to 'png'.
         """
         render_large = vtk.vtkRenderLargeImage()
         render_large.SetInput(self.ren)
@@ -194,7 +193,7 @@ class StructureVis:
         """
         Display the help for various keyboard shortcuts.
         """
-        helptxt = [
+        help_text = [
             "h : Toggle help",
             "A/a, B/b or C/c : Increase/decrease cell by one a, b or c unit vector",
             "# : Toggle showing of polyhedrons",
@@ -206,7 +205,7 @@ class StructureVis:
             "s: Save view to image.png",
             "o: Orthogonalize structure",
         ]
-        self.helptxt_mapper.SetInput("\n".join(helptxt))
+        self.helptxt_mapper.SetInput("\n".join(help_text))
         self.helptxt_actor.SetPosition(10, 10)
         self.helptxt_actor.VisibilityOn()
 
@@ -249,9 +248,9 @@ class StructureVis:
                 self.add_line((0, 0, 0), vec, colors[count])
                 self.add_text(vec, labels[count], colors[count])
                 count += 1
-            for (vec1, vec2) in itertools.permutations(matrix, 2):
+            for vec1, vec2 in itertools.permutations(matrix, 2):
                 self.add_line(vec1, vec1 + vec2)
-            for (vec1, vec2, vec3) in itertools.permutations(matrix, 3):
+            for vec1, vec2, vec3 in itertools.permutations(matrix, 3):
                 self.add_line(vec1 + vec2, vec1 + vec2 + vec3)
 
         if self.show_bonds or self.show_polyhedron:
@@ -259,10 +258,7 @@ class StructureVis:
             anion = elements[-1]
 
             def contains_anion(site):
-                for sp in site.species:
-                    if sp.symbol == anion.symbol:
-                        return True
-                return False
+                return any(sp.symbol == anion.symbol for sp in site.species)
 
             anion_radius = anion.average_ionic_radius
             for site in s:
@@ -288,7 +284,7 @@ class StructureVis:
                     if self.show_bonds:
                         self.add_bonds(nn_sites, site)
                     if self.show_polyhedron:
-                        color = [i / 255 for i in color]
+                        color = np.array([i / 255 for i in color])
                         self.add_polyhedron(nn_sites, site, color)
 
         if self.show_help:
@@ -534,7 +530,7 @@ class StructureVis:
         Adds a triangular surface between three atoms.
 
         Args:
-            atoms: Atoms between which a triangle will be drawn.
+            neighbors: Atoms between which a triangle will be drawn.
             color: Color for triangle as RGB.
             center: The "central atom" of the triangle
             opacity: opacity of the triangle
@@ -628,8 +624,8 @@ class StructureVis:
                     ii2 = np.mod(ii + 1, len(face))
                     points.InsertNextPoint(face[ii2][0], face[ii2][1], face[ii2][2])
                     points.InsertNextPoint(center[0], center[1], center[2])
-                    for ii in range(3):
-                        triangle.GetPointIds().SetId(ii, ii)
+                    for jj in range(3):
+                        triangle.GetPointIds().SetId(jj, jj)
                     triangles = vtk.vtkCellArray()
                     triangles.InsertNextCell(triangle)
                     trianglePolyData = vtk.vtkPolyData()
@@ -741,8 +737,8 @@ class StructureVis:
                     for site in self.mapper_map[mapper]:
                         row = [
                             f"{site.species_string} - ",
-                            ", ".join([f"{c:.3f}" for c in site.frac_coords]),
-                            "[" + ", ".join([f"{c:.3f}" for c in site.coords]) + "]",
+                            ", ".join(f"{c:.3f}" for c in site.frac_coords),
+                            "[" + ", ".join(f"{c:.3f}" for c in site.coords) + "]",
                         ]
                         output.append("".join(row))
                     self.helptxt_mapper.SetInput("\n".join(output))
@@ -782,7 +778,7 @@ class StructureVis:
                     site = self.mapper_map[mapper]
                     output = [
                         site.species_string,
-                        "Frac. coords: " + " ".join([f"{c:.4f}" for c in site.frac_coords]),
+                        "Frac. coords: " + " ".join(f"{c:.4f}" for c in site.frac_coords),
                     ]
                     source.SetText("\n".join(output))
                     follower.SetPosition(pick_pos)
@@ -1001,12 +997,12 @@ class MultiStructuresVis(StructureVis):
         self.current_structure = None
         self.set_animated_movie_options(animated_movie_options=animated_movie_options)
 
-    def set_structures(self, structures, tags=None):
+    def set_structures(self, structures: Sequence[Structure], tags=None):
         """
         Add list of structures to the visualizer.
 
         Args:
-            structures (List of Structures):
+            structures (list[Structures]): structures to be visualized.
             tags (): List of tags.
         """
         self.structures = structures
@@ -1053,9 +1049,8 @@ class MultiStructuresVis(StructureVis):
         tags = {}
         for tag in self.tags:
             istruct = tag.get("istruct", "all")
-            if istruct != "all":
-                if istruct != self.istruct:
-                    continue
+            if istruct != "all" and istruct != self.istruct:
+                continue
             site_index = tag["site_index"]
             color = tag.get("color", [0.5, 0.5, 0.5])
             opacity = tag.get("opacity", 0.5)
@@ -1209,7 +1204,7 @@ class MultiStructuresInteractorStyle(StructureInteractorStyle):
     Interactor for MultiStructureVis.
     """
 
-    def __init__(self, parent):
+    def __init__(self, parent) -> None:
         """
         Args:
             parent ():
@@ -1240,7 +1235,6 @@ class MultiStructuresInteractorStyle(StructureInteractorStyle):
                 parent.display_warning("FIRST STRUCTURE")
                 parent.ren_win.Render()
             else:
-
                 parent.istruct -= 1
                 parent.current_structure = parent.structures[parent.istruct]
                 parent.set_structure(parent.current_structure, reset_camera=False, to_unit_cell=False)
