@@ -1,9 +1,6 @@
-# Copyright (c) Pymatgen Development Team.
-# Distributed under the terms of the MIT License.
+"""Analysis classes for batteries."""
 
-"""
-Analysis classes for batteries
-"""
+from __future__ import annotations
 
 import math
 from collections import defaultdict
@@ -26,32 +23,30 @@ ELECTRON_TO_AMPERE_HOURS = EV_PER_ATOM_TO_J_PER_MOL / 3600
 
 
 class BatteryAnalyzer:
-    """
-    A suite of methods for starting with an oxidized structure and determining its potential as a battery
-    """
+    """A suite of methods for starting with an oxidized structure and determining its potential as a battery."""
 
-    def __init__(self, struc_oxid, working_ion="Li", oxi_override={}):
+    def __init__(self, struc_oxid, working_ion="Li", oxi_override=None):
         """
-        Pass in a structure for analysis
+        Pass in a structure for analysis.
 
         Arguments:
             struc_oxid: a Structure object; oxidation states *must* be assigned for this structure; disordered
                 structures should be OK
             working_ion: a String symbol or Element for the working ion.
-            oxy_override: a dict of String element symbol, Integer oxidation state pairs.
+            oxi_override: a dict of String element symbol, Integer oxidation state pairs.
                 by default, H, C, N, O, F, S, Cl, Se, Br, Te, I are considered anions.
         """
         for site in struc_oxid:
             if not hasattr(site.specie, "oxi_state"):
                 raise ValueError("BatteryAnalyzer requires oxidation states assigned to structure!")
         self.struc_oxid = struc_oxid
-        self.oxi_override = oxi_override
+        self.oxi_override = oxi_override or {}
         self.comp = self.struc_oxid.composition  # shortcut for later
 
         if not isinstance(working_ion, Element):
             self.working_ion = Element(working_ion)
-        if self.working_ion.symbol in oxi_override:
-            self.working_ion_charge = oxi_override[self.working_ion.symbol]
+        if self.working_ion.symbol in self.oxi_override:
+            self.working_ion_charge = self.oxi_override[self.working_ion.symbol]
         elif self.working_ion.symbol in ["H", "C", "N", "O", "F", "S", "Cl", "Se", "Br", "Te", "I"]:
             self.working_ion_charge = self.working_ion.min_oxidation_state
         else:
@@ -65,7 +60,6 @@ class BatteryAnalyzer:
         Returns:
             integer amount of ion. Depends on cell size (this is an 'extrinsic' function!)
         """
-
         # how much 'spare charge' is left in the redox metals for oxidation or reduction?
         if self.working_ion_charge < 0:
             lowest_oxid = defaultdict(lambda: 2, {"Cu": 1})  # only Cu can go down to 1+
@@ -125,7 +119,7 @@ class BatteryAnalyzer:
     def _get_max_cap_ah(self, remove, insert):
         """
         Give max capacity in mAh for inserting and removing a charged ion
-        This method does not normalize the capacity and intended as a helper method
+        This method does not normalize the capacity and intended as a helper method.
         """
         num_working_ions = 0
         if remove:
@@ -164,32 +158,30 @@ class BatteryAnalyzer:
         Returns:
             max vol capacity in mAh/cc
         """
-
-        vol = volume if volume else self.struc_oxid.volume
+        vol = volume or self.struc_oxid.volume
         return self._get_max_cap_ah(remove, insert) * 1000 * 1e24 / (vol * const.N_A)
 
     def get_removals_int_oxid(self):
         """
-        Returns a set of ion removal steps, e.g. set([1.0 2.0 4.0]) etc. in order to
+        Returns a set of ion removal steps, e.g. set([1 2 4]) etc. in order to
         produce integer oxidation states of the redox metals.
         If multiple redox metals are present, all combinations of reduction/oxidation are tested.
         Note that having more than 3 redox metals will likely slow down the algorithm.
 
         Examples:
-            LiFePO4 will return [1.0]
-            Li4Fe3Mn1(PO4)4 will return [1.0, 2.0, 3.0, 4.0])
-            Li6V4(PO4)6 will return [4.0, 6.0])  *note that this example is not normalized*
+            LiFePO4 will return [1]
+            Li4Fe3Mn1(PO4)4 will return [1, 2, 3, 4])
+            Li6V4(PO4)6 will return [4, 6])  *note that this example is not normalized*
 
         Returns:
             array of integer ion removals. If you double the unit cell, your answers will be twice as large!
         """
-
         # the elements that can possibly be oxidized or reduced
         oxid_els = [Element(spec.symbol) for spec in self.comp if is_redox_active_intercalation(spec)]
 
         numa = set()
         for oxid_el in oxid_els:
-            numa = numa.union(self._get_int_removals_helper(self.comp.copy(), oxid_el, oxid_els, numa))
+            numa = numa | self._get_int_removals_helper(self.comp.copy(), oxid_el, oxid_els, numa)
         # convert from num A in structure to num A removed
         num_working_ion = self.comp[Species(self.working_ion.symbol, self.working_ion_charge)]
         return {num_working_ion - a for a in numa}
@@ -199,14 +191,14 @@ class BatteryAnalyzer:
         This is a helper method for get_removals_int_oxid!
 
         Args:
-            spec_amts_oxi - a dict of species to their amounts in the structure
-            redox_el - the element to oxidize or reduce
-            redox_els - the full list of elements that might be oxidized or reduced
-            numa - a running set of numbers of A ion at integer oxidation steps
-        Returns:
-            a set of numbers A; steps for for oxidizing oxid_el first, then the other oxid_els in this list
-        """
+            spec_amts_oxi: a dict of species to their amounts in the structure
+            redox_el: the element to oxidize or reduce
+            redox_els: the full list of elements that might be oxidized or reduced
+            numa: a running set of numbers of A ion at integer oxidation steps
 
+        Returns:
+            a set of numbers A; steps for oxidizing oxid_el first, then the other oxid_els in this list
+        """
         # If a given redox_el has multiple oxidation states present in the structure, we want
         # to oxidize the lowest state or reduce the highest state
         if self.working_ion_charge < 0:
@@ -237,24 +229,23 @@ class BatteryAnalyzer:
             spec.oxi_state * spec_amts_oxi[spec] for spec in spec_amts_oxi if spec.symbol not in self.working_ion.symbol
         )
         a = max(0, -oxi_noA / self.working_ion_charge)
-        numa = numa.union({a})
+        numa = numa | {a}
 
         # recursively try the other oxidation states
         if a == 0:
             return numa
         for red in redox_els:
-            numa = numa.union(self._get_int_removals_helper(spec_amts_oxi.copy(), red, redox_els, numa))
+            numa = numa | self._get_int_removals_helper(spec_amts_oxi.copy(), red, redox_els, numa)
         return numa
 
 
-def is_redox_active_intercalation(element):
+def is_redox_active_intercalation(element) -> bool:
     """
-    True if element is redox active and interesting for intercalation materials
+    True if element is redox active and interesting for intercalation materials.
 
     Args:
         element: Element object
     """
-
     ns = [
         "Ti",
         "V",

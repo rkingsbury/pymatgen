@@ -1,18 +1,19 @@
-# Copyright (c) Pymatgen Development Team.
-# Distributed under the terms of the MIT License.
+"""This module defines filters for Transmuter object."""
 
-"""
-This module defines filters for Transmuter object.
-"""
+from __future__ import annotations
 
 import abc
 from collections import defaultdict
+from typing import TYPE_CHECKING
 
 from monty.json import MSONable
 
 from pymatgen.analysis.structure_matcher import ElementComparator, StructureMatcher
 from pymatgen.core.periodic_table import get_el_sp
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
+
+if TYPE_CHECKING:
+    from pymatgen.core import Structure
 
 
 class AbstractStructureFilter(MSONable, metaclass=abc.ABCMeta):
@@ -23,7 +24,7 @@ class AbstractStructureFilter(MSONable, metaclass=abc.ABCMeta):
     """
 
     @abc.abstractmethod
-    def test(self, structure):
+    def test(self, structure: Structure):
         """
         Method to execute the test.
 
@@ -51,14 +52,14 @@ class ContainsSpecieFilter(AbstractStructureFilter):
             strict_compare: if true, compares objects by specie or element
                 object if false, compares atomic number
             exclude: If true, returns false for any structures with the specie
-                (excludes them from the Transmuter)
+                (excludes them from the Transmuter).
         """
         self._species = list(map(get_el_sp, species))
         self._strict = strict_compare
         self._AND = AND
         self._exclude = exclude
 
-    def test(self, structure):
+    def test(self, structure: Structure):
         """
         Method to execute the test.
 
@@ -68,11 +69,11 @@ class ContainsSpecieFilter(AbstractStructureFilter):
         if not self._strict:
             # compare by atomic number
             filter_set = {sp.Z for sp in self._species}
-            structure_set = {sp.Z for sp in structure.composition.elements}
+            structure_set = {sp.Z for sp in structure.elements}
         else:
             # compare by specie or element object
             filter_set = set(self._species)
-            structure_set = set(structure.composition.elements)
+            structure_set = set(structure.elements)
 
         if self._AND and filter_set <= structure_set:
             # return true if we aren't excluding since all are in structure
@@ -95,9 +96,7 @@ class ContainsSpecieFilter(AbstractStructureFilter):
         )
 
     def as_dict(self):
-        """
-        Returns: MSONAble dict
-        """
+        """Returns: MSONable dict."""
         return {
             "@module": type(self).__module__,
             "@class": type(self).__name__,
@@ -110,15 +109,15 @@ class ContainsSpecieFilter(AbstractStructureFilter):
         }
 
     @classmethod
-    def from_dict(cls, d):
+    def from_dict(cls, dct):
         """
         Args:
-            d (dict): Dict representation
+            dct (dict): Dict representation.
 
         Returns:
             Filter
         """
-        return cls(**d["init_args"])
+        return cls(**dct["init_args"])
 
 
 class SpecieProximityFilter(AbstractStructureFilter):
@@ -139,7 +138,7 @@ class SpecieProximityFilter(AbstractStructureFilter):
         """
         self.specie_and_min_dist = {get_el_sp(k): v for k, v in specie_and_min_dist_dict.items()}
 
-    def test(self, structure):
+    def test(self, structure: Structure):
         """
         Method to execute the test.
 
@@ -149,24 +148,21 @@ class SpecieProximityFilter(AbstractStructureFilter):
         Returns: True if structure does not contain species within specified
             distances.
         """
-        all_species = set(self.specie_and_min_dist.keys())
+        all_species = set(self.specie_and_min_dist)
         for site in structure:
-            species = site.species.keys()
-            sp_to_test = set(species).intersection(all_species)
+            species = set(site.species)
+            sp_to_test = species.intersection(all_species)
             if sp_to_test:
                 max_r = max(self.specie_and_min_dist[sp] for sp in sp_to_test)
                 nn = structure.get_neighbors(site, max_r)
                 for sp in sp_to_test:
-                    for nnsite, dist, *_ in nn:
-                        if sp in nnsite.species.keys():
-                            if dist < self.specie_and_min_dist[sp]:
-                                return False
+                    for nn_site, dist, *_ in nn:
+                        if sp in nn_site.species and dist < self.specie_and_min_dist[sp]:
+                            return False
         return True
 
     def as_dict(self):
-        """
-        Returns: MSONable dict
-        """
+        """Returns: MSONable dict."""
         return {
             "@module": type(self).__module__,
             "@class": type(self).__name__,
@@ -174,81 +170,71 @@ class SpecieProximityFilter(AbstractStructureFilter):
         }
 
     @classmethod
-    def from_dict(cls, d):
+    def from_dict(cls, dct):
         """
         Args:
-            d (dict): Dict representation
+            dct (dict): Dict representation.
 
         Returns:
             Filter
         """
-        return cls(**d["init_args"])
+        return cls(**dct["init_args"])
 
 
 class RemoveDuplicatesFilter(AbstractStructureFilter):
-    """
-    This filter removes exact duplicate structures from the transmuter.
-    """
+    """This filter removes exact duplicate structures from the transmuter."""
 
-    def __init__(
-        self,
-        structure_matcher=StructureMatcher(comparator=ElementComparator()),
-        symprec=None,
-    ):
+    def __init__(self, structure_matcher: dict | StructureMatcher | None = None, symprec: float | None = None) -> None:
         """
         Remove duplicate structures based on the structure matcher
         and symmetry (if symprec is given).
 
         Args:
-            structure_matcher: Provides a structure matcher to be used for
+            structure_matcher (dict | StructureMatcher, optional): Provides a structure matcher to be used for
                 structure comparison.
-            symprec: The precision in the symmetry finder algorithm if None (
+            symprec (float, optional): The precision in the symmetry finder algorithm if None (
                 default value), no symmetry check is performed and only the
                 structure matcher is used. A recommended value is 1e-5.
         """
         self.symprec = symprec
-        self.structure_list = defaultdict(list)
+        self.structure_list: dict[str, list[Structure]] = defaultdict(list)
+        if not isinstance(structure_matcher, (dict, StructureMatcher, type(None))):
+            raise ValueError(f"{structure_matcher=} must be a dict, StructureMatcher or None")
         if isinstance(structure_matcher, dict):
             self.structure_matcher = StructureMatcher.from_dict(structure_matcher)
         else:
-            self.structure_matcher = structure_matcher
+            self.structure_matcher = structure_matcher or StructureMatcher(comparator=ElementComparator())
 
-    def test(self, structure):
+    def test(self, structure: Structure):
         """
         Args:
-            structure (Structure): Input structure to test
+            structure (Structure): Input structure to test.
 
         Returns: True if structure is not in list.
         """
-        h = self.structure_matcher._comparator.get_hash(structure.composition)
-        if not self.structure_list[h]:
-            self.structure_list[h].append(structure)
+        hash = self.structure_matcher._comparator.get_hash(structure.composition)
+        if not self.structure_list[hash]:
+            self.structure_list[hash].append(structure)
             return True
 
-        def get_sg(s):
-            finder = SpacegroupAnalyzer(s, symprec=self.symprec)
+        def get_spg_num(struct: Structure) -> int:
+            finder = SpacegroupAnalyzer(struct, symprec=self.symprec)
             return finder.get_space_group_number()
 
-        for s in self.structure_list[h]:
-            if self.symprec is None or get_sg(s) == get_sg(structure):
-                if self.structure_matcher.fit(s, structure):
-                    return False
+        for s in self.structure_list[hash]:
+            if (self.symprec is None or get_spg_num(s) == get_spg_num(structure)) and self.structure_matcher.fit(
+                s, structure
+            ):
+                return False
 
-        self.structure_list[h].append(structure)
+        self.structure_list[hash].append(structure)
         return True
 
 
 class RemoveExistingFilter(AbstractStructureFilter):
-    """
-    This filter removes structures existing in a given list from the transmuter.
-    """
+    """This filter removes structures existing in a given list from the transmuter."""
 
-    def __init__(
-        self,
-        existing_structures,
-        structure_matcher=StructureMatcher(comparator=ElementComparator()),
-        symprec=None,
-    ):
+    def __init__(self, existing_structures, structure_matcher=None, symprec=None):
         """
         Remove existing structures based on the structure matcher
         and symmetry (if symprec is given).
@@ -267,9 +253,9 @@ class RemoveExistingFilter(AbstractStructureFilter):
         if isinstance(structure_matcher, dict):
             self.structure_matcher = StructureMatcher.from_dict(structure_matcher)
         else:
-            self.structure_matcher = structure_matcher
+            self.structure_matcher = structure_matcher or StructureMatcher(comparator=ElementComparator())
 
-    def test(self, structure):
+    def test(self, structure: Structure):
         """
         Method to execute the test.
 
@@ -284,20 +270,19 @@ class RemoveExistingFilter(AbstractStructureFilter):
             return finder.get_space_group_number()
 
         for s in self.existing_structures:
-            if self.structure_matcher._comparator.get_hash(
-                structure.composition
-            ) == self.structure_matcher._comparator.get_hash(s.composition):
-                if self.symprec is None or get_sg(s) == get_sg(structure):
-                    if self.structure_matcher.fit(s, structure):
-                        return False
+            if (
+                self.structure_matcher._comparator.get_hash(structure.composition)
+                == self.structure_matcher._comparator.get_hash(s.composition)
+                and self.symprec is None
+                or get_sg(s) == get_sg(structure)
+            ) and self.structure_matcher.fit(s, structure):
+                return False
 
         self.structure_list.append(structure)
         return True
 
     def as_dict(self):
-        """
-        Returns: MSONable dict
-        """
+        """Returns: MSONable dict."""
         return {
             "@module": type(self).__module__,
             "@class": type(self).__name__,
@@ -314,11 +299,9 @@ class ChargeBalanceFilter(AbstractStructureFilter):
     """
 
     def __init__(self):
-        """
-        No args required.
-        """
+        """No args required."""
 
-    def test(self, structure):
+    def test(self, structure: Structure):
         """
         Method to execute the test.
 
@@ -352,7 +335,7 @@ class SpeciesMaxDistFilter(AbstractStructureFilter):
         self.sp2 = get_el_sp(sp2)
         self.max_dist = max_dist
 
-    def test(self, structure):
+    def test(self, structure: Structure):
         """
         Method to execute the test.
 
@@ -362,8 +345,8 @@ class SpeciesMaxDistFilter(AbstractStructureFilter):
         Returns: True if structure does not contain the two species are distances
             greater than max_dist.
         """
-        sp1_indices = [i for i, site in enumerate(structure) if site.specie == self.sp1]
-        sp2_indices = [i for i, site in enumerate(structure) if site.specie == self.sp2]
+        sp1_indices = [idx for idx, site in enumerate(structure) if site.specie == self.sp1]
+        sp2_indices = [idx for idx, site in enumerate(structure) if site.specie == self.sp2]
         fcoords = structure.frac_coords
         fcoords1 = fcoords[sp1_indices, :]
         fcoords2 = fcoords[sp2_indices, :]

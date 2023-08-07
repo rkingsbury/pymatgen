@@ -1,14 +1,11 @@
 #!/usr/bin/env python
-# Copyright (c) Pymatgen Development Team.
-# Distributed under the terms of the MIT License.
 
-"""
-A master convenience script with many tools for vasp and structure analysis.
-"""
+"""A master convenience script with many tools for vasp and structure analysis."""
+
+from __future__ import annotations
 
 import argparse
 import itertools
-import sys
 
 from tabulate import tabulate, tabulate_formats
 
@@ -32,9 +29,9 @@ def parse_view(args):
     from pymatgen.vis.structure_vtk import StructureVis
 
     excluded_bonding_elements = args.exclude_bonding[0].split(",") if args.exclude_bonding else []
-    s = Structure.from_file(args.filename[0])
+    struct = Structure.from_file(args.filename[0])
     vis = StructureVis(excluded_bonding_elements=excluded_bonding_elements)
-    vis.set_structure(s)
+    vis.set_structure(struct)
     vis.show()
     return 0
 
@@ -52,7 +49,7 @@ def diff_incar(args):
 
     def format_lists(v):
         if isinstance(v, (tuple, list)):
-            return " ".join([f"{len(tuple(group))}*{i:.2f}" for (i, group) in itertools.groupby(v)])
+            return " ".join(f"{len(tuple(group))}*{i:.2f}" for (i, group) in itertools.groupby(v))
         return v
 
     d = incar1.diff(incar2)
@@ -64,7 +61,7 @@ def diff_incar(args):
         ["----------------", "", ""],
     ]
     output.extend(
-        [(k, format_lists(d["Same"][k]), format_lists(d["Same"][k])) for k in sorted(d["Same"].keys()) if k != "SYSTEM"]
+        [(k, format_lists(d["Same"][k]), format_lists(d["Same"][k])) for k in sorted(d["Same"]) if k != "SYSTEM"]
     )
     output.extend(
         [
@@ -73,7 +70,7 @@ def diff_incar(args):
                 format_lists(d["Different"][k]["INCAR1"]),
                 format_lists(d["Different"][k]["INCAR2"]),
             )
-            for k in sorted(d["Different"].keys())
+            for k in sorted(d["Different"])
             if k != "SYSTEM"
         ]
     )
@@ -82,9 +79,7 @@ def diff_incar(args):
 
 
 def main():
-    """
-    Handle main.
-    """
+    """Handle main."""
     parser = argparse.ArgumentParser(
         description="""
     pmg is a convenient script that uses pymatgen to perform many
@@ -132,6 +127,16 @@ def main():
         nargs="+",
         help="Variables to add in the form of space separated key value pairs. E.g., PMG_VASP_PSP_DIR ~/psps",
     )
+
+    groups.add_argument(
+        "--cp2k",
+        dest="cp2k_data_dirs",
+        metavar="dir_name",
+        nargs=2,
+        help="Initial directory where the CP2K data is located and the output directory where the "
+        "CP2K yaml data files will be written",
+    )
+
     parser_config.add_argument(
         "-b",
         "--backup",
@@ -141,7 +146,7 @@ def main():
     )
     parser_config.set_defaults(func=configure_pmg)
 
-    parser_analyze = subparsers.add_parser("analyze", help="Vasp calculation analysis tools.")
+    parser_analyze = subparsers.add_parser("analyze", help="VASP calculation analysis tools.")
     parser_analyze.add_argument(
         "directories",
         metavar="dir",
@@ -440,12 +445,12 @@ def main():
     args = parser.parse_args()
 
     try:
-        getattr(args, "func")
+        args.func  # noqa: B018
     except AttributeError:
         parser.print_help()
-        sys.exit(-1)
+        raise SystemExit("Please specify a command.")
     return args.func(args)
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

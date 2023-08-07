@@ -1,6 +1,3 @@
-# Copyright (c) Pymatgen Development Team.
-# Distributed under the terms of the MIT License.
-
 """
 This module implements functions to perform various useful operations on
 entries, such as grouping entries by structure.
@@ -15,7 +12,7 @@ import itertools
 import json
 import logging
 import re
-from typing import Iterable, List, Literal
+from typing import TYPE_CHECKING, Iterable, Literal
 
 from monty.json import MontyDecoder, MontyEncoder, MSONable
 from monty.string import unicode2str
@@ -24,32 +21,24 @@ from pymatgen.analysis.phase_diagram import PDEntry
 from pymatgen.analysis.structure_matcher import SpeciesComparator, StructureMatcher
 from pymatgen.core.composition import Composition
 from pymatgen.core.periodic_table import Element
-from pymatgen.entries import Entry
-from pymatgen.entries.computed_entries import ComputedEntry, ComputedStructureEntry
+
+if TYPE_CHECKING:
+    from pymatgen.entries import Entry
+    from pymatgen.entries.computed_entries import ComputedEntry, ComputedStructureEntry
 
 logger = logging.getLogger(__name__)
 
 
 def _get_host(structure, species_to_remove):
     if species_to_remove:
-        s = structure.copy()
-        s.remove_species(species_to_remove)
-        return s
+        struct = structure.copy()
+        struct.remove_species(species_to_remove)
+        return struct
     return structure
 
 
 def _perform_grouping(args):
-    (
-        entries_json,
-        hosts_json,
-        ltol,
-        stol,
-        angle_tol,
-        primitive_cell,
-        scale,
-        comparator,
-        groups,
-    ) = args
+    entries_json, hosts_json, ltol, stol, angle_tol, primitive_cell, scale, comparator, groups = args
 
     entries = json.loads(entries_json, cls=MontyDecoder)
     hosts = json.loads(hosts_json, cls=MontyDecoder)
@@ -89,7 +78,7 @@ def group_entries_by_structure(
     angle_tol=5,
     primitive_cell=True,
     scale=True,
-    comparator=SpeciesComparator(),
+    comparator=None,
     ncpus=None,
 ):
     """
@@ -118,6 +107,8 @@ def group_entries_by_structure(
         Sequence of sequence of entries by structural similarity. e.g,
         [[ entry1, entry2], [entry3, entry4, entry5]]
     """
+    if comparator is None:
+        comparator = SpeciesComparator()
     start = datetime.datetime.now()
     logger.info(f"Started at {start}")
     entries_host = [(entry, _get_host(entry.structure, species_to_remove)) for entry in entries]
@@ -241,11 +232,11 @@ class EntrySet(collections.abc.MutableSet, MSONable):
     def chemsys(self) -> set:
         """
         Returns:
-            set representing the chemical system, e.g., {"Li", "Fe", "P", "O"}
+            set representing the chemical system, e.g., {"Li", "Fe", "P", "O"}.
         """
         chemsys = set()
         for e in self.entries:
-            chemsys.update([el.symbol for el in e.composition.keys()])
+            chemsys.update([el.symbol for el in e.composition])
         return chemsys
 
     @property
@@ -268,9 +259,7 @@ class EntrySet(collections.abc.MutableSet, MSONable):
         self.entries = self.ground_states
 
     def is_ground_state(self, entry) -> bool:
-        """
-        Boolean indicating whether a given Entry is a ground state
-        """
+        """Boolean indicating whether a given Entry is a ground state."""
         return entry in self.ground_states
 
     def get_subset_in_chemsys(self, chemsys: list[str]):
@@ -290,23 +279,23 @@ class EntrySet(collections.abc.MutableSet, MSONable):
         """
         chem_sys = set(chemsys)
         if not chem_sys.issubset(self.chemsys):
-            raise ValueError(f"{chem_sys} is not a subset of {self.chemsys}")
+            raise ValueError(
+                f"{sorted(chem_sys)} is not a subset of {sorted(self.chemsys)}, extra: {chem_sys - self.chemsys}"
+            )
         subset = set()
         for e in self.entries:
-            elements = [sp.symbol for sp in e.composition.keys()]
+            elements = [sp.symbol for sp in e.composition]
             if chem_sys.issuperset(elements):
                 subset.add(e)
         return EntrySet(subset)
 
     def as_dict(self) -> dict[Literal["entries"], list[Entry]]:
-        """
-        Returns MSONable dict.
-        """
+        """Returns MSONable dict."""
         return {"entries": list(self.entries)}
 
     def to_csv(self, filename: str, latexify_names: bool = False) -> None:
         """
-        Exports PDEntries to a csv
+        Exports PDEntries to a csv.
 
         Args:
             filename: Filename to write to.
@@ -314,11 +303,10 @@ class EntrySet(collections.abc.MutableSet, MSONable):
             latexify_names: Format entry names to be LaTex compatible,
                 e.g., Li_{2}O
         """
-
         els: set[Element] = set()
         for entry in self.entries:
-            els.update(entry.composition.elements)
-        elements = sorted(list(els), key=lambda a: a.X)
+            els.update(entry.elements)
+        elements = sorted(els, key=lambda a: a.X)
         with open(filename, "w") as f:
             writer = csv.writer(
                 f,
@@ -353,7 +341,7 @@ class EntrySet(collections.abc.MutableSet, MSONable):
             )
             entries = []
             header_read = False
-            elements = []  # type: List[str]
+            elements: list[str] = []
             for row in reader:
                 if not header_read:
                     elements = row[1 : (len(row) - 1)]
