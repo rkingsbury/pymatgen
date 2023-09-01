@@ -39,7 +39,7 @@ __date__ = "Nov 2021"
 class PackmolSet(InputSet):
     """
     InputSet for the Packmol software. This class defines several attributes related
-    to
+    to.
     """
 
     def run(self, path: str | Path, timeout=30):
@@ -82,8 +82,8 @@ class PackmolSet(InputSet):
                     )
                 msg = p.stdout.decode().split("ERROR")[-1]
                 raise ValueError(f"Packmol failed with return code 0 and stdout: {msg}")
-        except subprocess.CalledProcessError as e:
-            raise ValueError(f"Packmol failed with errorcode {e.returncode} and stderr: {e.stderr}") from e
+        except subprocess.CalledProcessError as exc:
+            raise ValueError(f"Packmol failed with error code {exc.returncode} and stderr: {exc.stderr}") from exc
         else:
             with open(Path(path, self.stdoutfile), "w") as out:
                 out.write(p.stdout.decode())
@@ -96,7 +96,7 @@ class PackmolSet(InputSet):
         Construct an InputSet from a directory of one or more files.
 
         Args:
-            directory: Directory to read input files from
+            directory (str | Path): Directory to read input files from.
         """
         raise NotImplementedError(f"from_directory has not been implemented in {cls}")
 
@@ -115,7 +115,7 @@ class PackmolBoxGen(InputGenerator):
         inputfile: str | Path = "packmol.inp",
         outputfile: str | Path = "packmol_out.xyz",
         stdoutfile: str | Path = "packmol.stdout",
-    ):
+    ) -> None:
         """
         Instantiate a PackmolBoxGen class. The init method defines simulations parameters
         like filenames, random seed, tolerance, etc.
@@ -139,7 +139,7 @@ class PackmolBoxGen(InputGenerator):
         self,
         molecules: list[dict],
         box: list[float] | None = None,
-    ):
+    ) -> PackmolSet:
         """
         Generate a Packmol InputSet for a set of molecules.
 
@@ -167,7 +167,7 @@ class PackmolBoxGen(InputGenerator):
             if isinstance(v, list):
                 file_contents += f"{k} {' '.join(str(x) for x in v)}\n"
             else:
-                file_contents += f"{k} {str(v)}\n"
+                file_contents += f"{k} {v}\n"
         file_contents += f"seed {self.seed}\n"
         file_contents += f"tolerance {self.tolerance}\n\n"
 
@@ -194,7 +194,7 @@ class PackmolBoxGen(InputGenerator):
                     + self.tolerance
                 )
                 net_volume += (length**3.0) * float(d["number"])
-            box_length = net_volume ** (1.0 / 3.0)
+            box_length = net_volume ** (1 / 3)
             print(f"Auto determined box size is {box_length:.1f} Å per side.")
             box_list = f"0.0 0.0 0.0 {box_length:.1f} {box_length:.1f} {box_length:.1f}"
 
@@ -214,7 +214,7 @@ class PackmolBoxGen(InputGenerator):
                 # fmt: on
             else:
                 file_contents += f"structure {fname}\n"
-            file_contents += f"  number {str(d['number'])}\n"
+            file_contents += f"  number {d['number']}\n"
             file_contents += f"  inside box {box_list}\n"
             file_contents += "end structure\n\n"
 

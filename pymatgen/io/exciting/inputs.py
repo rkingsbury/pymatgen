@@ -1,9 +1,4 @@
-# Copyright (c) Pymatgen Development Team.
-# Distributed under the terms of the MIT License.
-
-"""
-Classes for reading/manipulating/writing exciting input files.
-"""
+"""Classes for reading/manipulating/writing exciting input files."""
 
 from __future__ import annotations
 
@@ -71,20 +66,21 @@ class ExcitingInput(MSONable):
 
     @property
     def lockxyz(self):
-        """
-        :return: Selective dynamics site properties.
-        """
+        """Selective dynamics site properties."""
         return self.structure.site_properties.get("selective_dynamics")
 
     @lockxyz.setter
     def lockxyz(self, lockxyz):
         self.structure.add_site_property("selective_dynamics", lockxyz)
 
+    @classmethod
+    @np.deprecate(message="Use from_str instead")
+    def from_string(cls, *args, **kwargs):
+        return cls.from_str(*args, **kwargs)
+
     @staticmethod
-    def from_string(data):
-        """
-        Reads the exciting input from a string
-        """
+    def from_str(data):
+        """Reads the exciting input from a string."""
         root = ET.fromstring(data)
         speciesnode = root.find("structure").iter("species")
         elements = []
@@ -159,7 +155,7 @@ class ExcitingInput(MSONable):
         """
         with zopen(filename, "rt") as f:
             data = f.read().replace("\n", "")
-        return ExcitingInput.from_string(data)
+        return ExcitingInput.from_str(data)
 
     def write_etree(self, celltype, cartesian=False, bandstr=False, symprec: float = 0.4, angle_tolerance=5, **kwargs):
         """
@@ -359,9 +355,8 @@ class ExcitingInput(MSONable):
                 ExcitingInput._indent(el, level + 1)
             if not elem.tail or not elem.tail.strip():
                 elem.tail = i
-        else:
-            if level and (not elem.tail or not elem.tail.strip()):
-                elem.tail = i
+        elif level and (not elem.tail or not elem.tail.strip()):
+            elem.tail = i
 
     def _dicttoxml(self, paramdict_, element):
         for key, value in paramdict_.items():

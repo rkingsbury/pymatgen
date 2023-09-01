@@ -1,9 +1,4 @@
-# Copyright (c) Pymatgen Development Team.
-# Distributed under the terms of the MIT License.
-
-"""
-This module defines generic plotters.
-"""
+"""This module defines generic plotters."""
 
 from __future__ import annotations
 
@@ -44,7 +39,7 @@ class SpectrumPlotter:
                 For example, DOS plot can usually be stacked to look at the
                 contribution of each orbital.
             color_cycle (str): Default color cycle to use. Note that this can be
-                overridden
+                overridden.
         """
         self.xshift = xshift
         self.yshift = yshift
@@ -141,8 +136,6 @@ class SpectrumPlotter:
         plt.savefig(filename, format=img_format)
 
     def show(self, **kwargs):
-        """
-        Show the plot using matplotlib.
-        """
+        """Show the plot using matplotlib."""
         plt = self.get_plot(**kwargs)
         plt.show()

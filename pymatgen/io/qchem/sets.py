@@ -1,22 +1,19 @@
-# Copyright (c) Pymatgen Development Team.
-# Distributed under the terms of the MIT License.
-
-"""
-Input sets for Qchem
-"""
+"""Input sets for Qchem."""
 
 from __future__ import annotations
 
 import logging
 import os
 import warnings
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from monty.io import zopen
 
-from pymatgen.core.structure import Molecule
 from pymatgen.io.qchem.inputs import QCInput
 from pymatgen.io.qchem.utils import lower_and_check_unique
+
+if TYPE_CHECKING:
+    from pymatgen.core.structure import Molecule
 
 __author__ = "Samuel Blau, Brandon Wood, Shyam Dwaraknath, Evan Spotte-Smith, Ryan Kingsbury"
 __copyright__ = "Copyright 2018-2022, The Materials Project"
@@ -131,9 +128,7 @@ CMIRS_SETTINGS = {
 
 
 class QChemDictSet(QCInput):
-    """
-    Build a QCInput given all the various input parameters. Can be extended by standard implementations below.
-    """
+    """Build a QCInput given all the various input parameters. Can be extended by standard implementations below."""
 
     def __init__(
         self,
@@ -179,7 +174,7 @@ class QChemDictSet(QCInput):
                 2 (GGA) = B97-D3(BJ)
                 3 (metaGGA) = B97M-V
                 4 (hybrid metaGGA) = ωB97M-V
-                5 (double hybrid metaGGA) = ωB97M-(2)
+                5 (double hybrid metaGGA) = ωB97M-(2).
 
                 (Default: 4)
 
@@ -461,12 +456,11 @@ class QChemDictSet(QCInput):
             if self.smd_solvent in ("custom", "other"):
                 if self.custom_smd is None:
                     raise ValueError(
-                        "A user-defined SMD requires passing custom_smd, a string"
-                        + " of seven comma separated values in the following order:"
-                        + " dielectric, refractive index, acidity, basicity, surface"
-                        + " tension, aromaticity, electronegative halogenicity"
+                        "A user-defined SMD requires passing custom_smd, a string of seven comma separated values "
+                        "in the following order: dielectric, refractive index, acidity, basicity, surface"
+                        " tension, aromaticity, electronegative halogenicity"
                     )
-                elif self.qchem_version == 6:
+                if self.qchem_version == 6:
                     custom_smd_vals = self.custom_smd.split(",")
                     mysmx["epsilon"] = custom_smd_vals[0]
                     mysmx["SolN"] = custom_smd_vals[1]
@@ -585,7 +579,7 @@ class QChemDictSet(QCInput):
                                 raise RuntimeError(
                                     "CMIRS is only parameterized for RHOISO values of 0.001 or 0.0005! Exiting..."
                                 )
-                            for k2, _v2 in mypcm_nonels.items():
+                            for k2 in mypcm_nonels:
                                 if CMIRS_SETTINGS[self.cmirs_solvent][v].get(k2):  # type: ignore
                                     mypcm_nonels[k2] = CMIRS_SETTINGS[self.cmirs_solvent][v].get(k2)  # type: ignore
                         if k == "idefesr":
@@ -641,7 +635,7 @@ class QChemDictSet(QCInput):
     def write(self, input_file: str):
         """
         Args:
-            input_file (str): Filename
+            input_file (str): Filename.
         """
         self.write_file(input_file)
         if self.smd_solvent in ("custom", "other") and self.qchem_version == 5:
@@ -650,9 +644,7 @@ class QChemDictSet(QCInput):
 
 
 class SinglePointSet(QChemDictSet):
-    """
-    QChemDictSet for a single point calculation
-    """
+    """QChemDictSet for a single point calculation."""
 
     def __init__(
         self,
@@ -694,7 +686,7 @@ class SinglePointSet(QChemDictSet):
                 2 (GGA) = B97-D3(BJ)
                 3 (metaGGA) = B97M-V
                 4 (hybrid metaGGA) = ωB97M-V
-                5 (double hybrid metaGGA) = ωB97M-(2)
+                5 (double hybrid metaGGA) = ωB97M-(2).
 
                 (Default: 4)
 
@@ -877,9 +869,7 @@ class SinglePointSet(QChemDictSet):
 
 
 class OptSet(QChemDictSet):
-    """
-    QChemDictSet for a geometry optimization
-    """
+    """QChemDictSet for a geometry optimization."""
 
     def __init__(
         self,
@@ -921,7 +911,7 @@ class OptSet(QChemDictSet):
                 2 (GGA) = B97-D3(BJ)
                 3 (metaGGA) = B97M-V
                 4 (hybrid metaGGA) = ωB97M-V
-                5 (double hybrid metaGGA) = ωB97M-(2)
+                5 (double hybrid metaGGA) = ωB97M-(2).
 
                 (Default: 4)
 
@@ -1089,9 +1079,7 @@ class OptSet(QChemDictSet):
 
 
 class TransitionStateSet(QChemDictSet):
-    """
-    QChemDictSet for a transition-state search
-    """
+    """QChemDictSet for a transition-state search."""
 
     def __init__(
         self,
@@ -1130,7 +1118,7 @@ class TransitionStateSet(QChemDictSet):
                 2 (GGA) = B97-D3(BJ)
                 3 (metaGGA) = B97M-V
                 4 (hybrid metaGGA) = ωB97M-V
-                5 (double hybrid metaGGA) = ωB97M-(2)
+                5 (double hybrid metaGGA) = ωB97M-(2).
 
                 (Default: 4)
 
@@ -1225,9 +1213,7 @@ class TransitionStateSet(QChemDictSet):
 
 
 class ForceSet(QChemDictSet):
-    """
-    QChemDictSet for a force (gradient) calculation
-    """
+    """QChemDictSet for a force (gradient) calculation."""
 
     def __init__(
         self,
@@ -1264,7 +1250,7 @@ class ForceSet(QChemDictSet):
                 2 (GGA) = B97-D3(BJ)
                 3 (metaGGA) = B97M-V
                 4 (hybrid metaGGA) = ωB97M-V
-                5 (double hybrid metaGGA) = ωB97M-(2)
+                5 (double hybrid metaGGA) = ωB97M-(2).
 
                 (Default: 4)
 
@@ -1417,9 +1403,7 @@ class ForceSet(QChemDictSet):
 
 
 class FreqSet(QChemDictSet):
-    """
-    QChemDictSet for a frequency calculation
-    """
+    """QChemDictSet for a frequency calculation."""
 
     def __init__(
         self,
@@ -1456,7 +1440,7 @@ class FreqSet(QChemDictSet):
                 2 (GGA) = B97-D3(BJ)
                 3 (metaGGA) = B97M-V
                 4 (hybrid metaGGA) = ωB97M-V
-                5 (double hybrid metaGGA) = ωB97M-(2)
+                5 (double hybrid metaGGA) = ωB97M-(2).
 
                 (Default: 4)
 

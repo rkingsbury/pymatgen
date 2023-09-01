@@ -1,6 +1,3 @@
-# Copyright (c) Pymatgen Development Team.
-# Distributed under the terms of the MIT License.
-
 """
 This module implements a MolecularOrbital class to represent band character in
 solids. Useful for predicting PDOS character from structural information.
@@ -28,28 +25,24 @@ class MolecularOrbitals:
 
     The atomic orbital energies are stored in pymatgen.core.periodic_table.JSON
 
-    >>> MOs = MolecularOrbitals('SrTiO3')
-    >>> MOs.band_edges
-    {'HOMO':['O','2p',-0.338381], 'LUMO':['Ti','3d',-0.17001], 'metal':False}
+    MOs = MolecularOrbitals('SrTiO3')
+    MOs.band_edges
+    # gives {'HOMO':['O','2p',-0.338381], 'LUMO':['Ti','3d',-0.17001], 'metal':False}
     """
 
     def __init__(self, formula):
         """
         Args:
-            chemical formula as a string. formula must have integer subscripts
-            Ex: 'SrTiO3'
+            formula (str): Chemical formula. Must have integer subscripts. Ex: 'SrTiO3'.
 
         Attributes:
-            composition: the composition as a dictionary.
-                         Ex: {'Sr': 1, 'Ti': 1, 'O', 3}
-            elements:    the dictionary keys for the composition
-            elec_neg:    the maximum pairwise electronegativity difference
-            aos:         the consituant atomic orbitals for each element as a
-                         dictionary
-            band_edges:  dictionary containing the highest occupied molecular
-                         orbital (HOMO), lowest unoccupied molecular orbital
-                         (LUMO), and whether the material is predicted to be a
-                         metal
+            composition: the composition as a dictionary. Ex: {'Sr': 1, 'Ti': 1, 'O', 3}
+            elements: the dictionary keys for the composition
+            elec_neg: the maximum pairwise electronegativity difference
+            aos: the constituent atomic orbitals for each element as a dictionary
+            band_edges: dictionary containing the highest occupied molecular orbital (HOMO),
+                lowest unoccupied molecular orbital (LUMO), and whether the material is predicted
+                to be a metal
         """
         self.composition = Composition(formula).as_dict()
         self.elements = list(self.composition)

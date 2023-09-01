@@ -1,6 +1,3 @@
-# Copyright (c) Pymatgen Development Team.
-# Distributed under the terms of the MIT License.
-
 """
 This class implements definitions for various kinds of bonds. Typically used in
 Molecule analysis.
@@ -12,14 +9,17 @@ import collections
 import json
 import os
 import warnings
+from typing import TYPE_CHECKING
 
 from pymatgen.core.periodic_table import Element
-from pymatgen.core.sites import Site
-from pymatgen.util.typing import SpeciesLike
+
+if TYPE_CHECKING:
+    from pymatgen.core.sites import Site
+    from pymatgen.util.typing import SpeciesLike
 
 
 def _load_bond_length_data():
-    """Loads bond length data from json file"""
+    """Loads bond length data from json file."""
     with open(os.path.join(os.path.dirname(__file__), "bond_lengths.json")) as f:
         data = collections.defaultdict(dict)
         for row in json.load(f):
@@ -32,9 +32,7 @@ bond_lengths = _load_bond_length_data()
 
 
 class CovalentBond:
-    """
-    Defines a covalent bond between two sites.
-    """
+    """Defines a covalent bond between two sites."""
 
     def __init__(self, site1: Site, site2: Site):
         """
@@ -49,9 +47,7 @@ class CovalentBond:
 
     @property
     def length(self) -> float:
-        """
-        Length of the bond.
-        """
+        """Length of the bond."""
         return self.site1.distance(self.site2)
 
     def get_bond_order(self, tol: float = 0.2, default_bl: float | None = None) -> float:
@@ -72,8 +68,8 @@ class CovalentBond:
             Float value of bond order. For example, for C-C bond in
             benzene, return 1.7.
         """
-        sp1 = list(self.site1.species)[0]
-        sp2 = list(self.site2.species)[0]
+        sp1 = next(iter(self.site1.species))
+        sp2 = next(iter(self.site2.species))
         dist = self.site1.distance(self.site2)
         return get_bond_order(sp1, sp2, dist, tol, default_bl)
 
@@ -97,8 +93,8 @@ class CovalentBond:
         Returns:
             Boolean indicating whether two sites are bonded.
         """
-        sp1 = list(site1.species)[0]
-        sp2 = list(site2.species)[0]
+        sp1 = next(iter(site1.species))
+        sp2 = next(iter(site2.species))
         dist = site1.distance(site2)
         syms = tuple(sorted([sp1.symbol, sp2.symbol]))
         if syms in bond_lengths:
@@ -113,13 +109,10 @@ class CovalentBond:
     def __repr__(self):
         return f"Covalent bond between {self.site1} and {self.site2}"
 
-    def __str__(self):
-        return self.__repr__()
-
 
 def obtain_all_bond_lengths(sp1, sp2, default_bl: float | None = None):
     """
-    Obtain bond lengths for all bond orders from bond length database
+    Obtain bond lengths for all bond orders from bond length database.
 
     Args:
         sp1 (Species): First specie.
@@ -145,7 +138,7 @@ def obtain_all_bond_lengths(sp1, sp2, default_bl: float | None = None):
 
 def get_bond_order(sp1, sp2, dist: float, tol: float = 0.2, default_bl: float | None = None):
     """
-    Calculate the bond order given the distance of 2 species
+    Calculate the bond order given the distance of 2 species.
 
     Args:
         sp1 (Species): First specie.

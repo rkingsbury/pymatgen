@@ -1,16 +1,11 @@
-# Copyright (c) Pymatgen Development Team.
-# Distributed under the terms of the MIT License.
-
 """
-This module implements representations of slabs and surfaces, as well as
-algorithms for generating them. If you use this module, please consider
-citing the following work::
+This module implements representations of slabs and surfaces + algorithms for generating them.
+
+If you use this module, please consider citing the following work:
 
     R. Tran, Z. Xu, B. Radhakrishnan, D. Winston, W. Sun, K. A. Persson,
     S. P. Ong, "Surface Energies of Elemental Crystals", Scientific Data,
     2016, 3:160080, doi: 10.1038/sdata.2016.80.
-
-as well as::
 
     Sun, W.; Ceder, G. Efficient creation and convergence of surface slabs,
     Surface Science, 2013, 617, 53-59, doi:10.1016/j.susc.2013.05.016.
@@ -41,9 +36,18 @@ from pymatgen.core.sites import PeriodicSite
 from pymatgen.core.structure import Structure
 from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 from pymatgen.util.coord import in_coord_list
+from pymatgen.util.due import Doi, due
 
 __author__ = "Richard Tran, Wenhao Sun, Zihan Xu, Shyue Ping Ong"
 
+due.dcite(
+    Doi("10.1038/sdata.2016.80"),
+    description="Surface Energies of Elemental Crystals",
+)
+due.dcite(
+    Doi("10.1016/j.susc.2013.05.016"),
+    description="Efficient creation and convergence of surface slabs",
+)
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +136,7 @@ class Slab(Structure):
                 that are less than 0.01 Ang apart. Defaults to False.
             reconstruction (str): Type of reconstruction. Defaults to None if
                 the slab is not reconstructed.
+            to_unit_cell (bool): Translates fractional coordinates into the unit cell. Defaults to False.
             coords_are_cartesian (bool): Set to True if you are providing
                 coordinates in Cartesian coordinates. Defaults to False.
             site_properties (dict): Properties associated with the sites as a
@@ -218,16 +223,16 @@ class Slab(Structure):
         sites = list(self.sites)
         slabs = []
 
-        sortedcsites = sorted(sites, key=lambda site: site.c)
+        sorted_csites = sorted(sites, key=lambda site: site.c)
 
         # Determine what fraction the slab is of the total cell size in the
         # c direction. Round to nearest rational number.
-        nlayers_total = int(round(self.lattice.c / self.oriented_unit_cell.lattice.c))
-        nlayers_slab = int(round((sortedcsites[-1].c - sortedcsites[0].c) * nlayers_total))
-        slab_ratio = nlayers_slab / nlayers_total
+        n_layers_total = int(round(self.lattice.c / self.oriented_unit_cell.lattice.c))
+        n_layers_slab = int(round((sorted_csites[-1].c - sorted_csites[0].c) * n_layers_total))
+        slab_ratio = n_layers_slab / n_layers_total
 
-        a = SpacegroupAnalyzer(self)
-        symm_structure = a.get_symmetrized_structure()
+        spga = SpacegroupAnalyzer(self)
+        symm_structure = spga.get_symmetrized_structure()
 
         def equi_index(site):
             for i, equi_sites in enumerate(symm_structure.equivalent_sites):
@@ -236,8 +241,8 @@ class Slab(Structure):
             raise ValueError("Cannot determine equi index!")
 
         for surface_site, shift in [
-            (sortedcsites[0], slab_ratio),
-            (sortedcsites[-1], -slab_ratio),
+            (sorted_csites[0], slab_ratio),
+            (sorted_csites[-1], -slab_ratio),
         ]:
             tomove = []
             fixed = []
@@ -297,8 +302,7 @@ class Slab(Structure):
                 )
                 slabs.append(slab)
         s = StructureMatcher()
-        unique = [ss[0] for ss in s.group_structures(slabs)]
-        return unique
+        return [ss[0] for ss in s.group_structures(slabs)]
 
     def is_symmetric(self, symprec: float = 0.1):
         """
@@ -309,22 +313,20 @@ class Slab(Structure):
             symprec (float): Symmetry precision used for SpaceGroup analyzer.
 
         Returns:
-            (bool) Whether surfaces are symmetric.
+            bool: Whether surfaces are symmetric.
         """
         sg = SpacegroupAnalyzer(self, symprec=symprec)
-        symmops = sg.get_point_group_operations()
+        symm_ops = sg.get_point_group_operations()
 
-        if (
+        # Check for inversion symmetry. Or if sites from surface (a) can be translated
+        # to surface (b) along the [hkl]-axis, surfaces are symmetric. Or because the
+        # two surfaces of our slabs are always parallel to the (hkl) plane,
+        # any operation where there's an (hkl) mirror plane has surface symmetry
+        return (
             sg.is_laue()
-            or any(op.translation_vector[2] != 0 for op in symmops)
-            or any(np.alltrue(op.rotation_matrix[2] == np.array([0, 0, -1])) for op in symmops)
-        ):
-            # Check for inversion symmetry. Or if sites from surface (a) can be translated
-            # to surface (b) along the [hkl]-axis, surfaces are symmetric. Or because the
-            # two surfaces of our slabs are always parallel to the (hkl) plane,
-            # any operation where there's an (hkl) mirror plane has surface symmetry
-            return True
-        return False
+            or any(op.translation_vector[2] != 0 for op in symm_ops)
+            or any(np.all(op.rotation_matrix[2] == np.array([0, 0, -1])) for op in symm_ops)
+        )
 
     def get_sorted_structure(self, key=None, reverse=False):
         """
@@ -341,16 +343,16 @@ class Slab(Structure):
                 as if each comparison were reversed.
         """
         sites = sorted(self, key=key, reverse=reverse)
-        s = Structure.from_sites(sites)
+        struct = Structure.from_sites(sites)
         return Slab(
-            s.lattice,
-            s.species_and_occu,
-            s.frac_coords,
+            struct.lattice,
+            struct.species_and_occu,
+            struct.frac_coords,
             self.miller_index,
             self.oriented_unit_cell,
             self.shift,
             self.scale_factor,
-            site_properties=s.site_properties,
+            site_properties=struct.site_properties,
             reorient_lattice=self.reorient_lattice,
         )
 
@@ -425,34 +427,27 @@ class Slab(Structure):
 
     @property
     def normal(self):
-        """
-        Calculates the surface normal vector of the slab
-        """
+        """Calculates the surface normal vector of the slab."""
         normal = np.cross(self.lattice.matrix[0], self.lattice.matrix[1])
         normal /= np.linalg.norm(normal)
         return normal
 
     @property
     def surface_area(self):
-        """
-        Calculates the surface area of the slab
-        """
+        """Calculates the surface area of the slab."""
         m = self.lattice.matrix
         return np.linalg.norm(np.cross(m[0], m[1]))
 
     @property
     def center_of_mass(self):
-        """
-        Calculates the center of mass of the slab
-        """
+        """Calculates the center of mass of the slab."""
         weights = [s.species.weight for s in self]
-        center_of_mass = np.average(self.frac_coords, weights=weights, axis=0)
-        return center_of_mass
+        return np.average(self.frac_coords, weights=weights, axis=0)
 
     def add_adsorbate_atom(self, indices, specie, distance):
         """
         Gets the structure of single atom adsorption.
-        slab structure from the Slab class(in [0, 0, 1])
+        slab structure from the Slab class(in [0, 0, 1]).
 
         Args:
             indices ([int]): Indices of sites on which to put the absorbate.
@@ -497,9 +492,7 @@ class Slab(Structure):
         return "\n".join(outs)
 
     def as_dict(self):
-        """
-        :return: MSONAble dict
-        """
+        """MSONable dict."""
         d = super().as_dict()
         d["@module"] = type(self).__module__
         d["@class"] = type(self).__name__
@@ -519,17 +512,17 @@ class Slab(Structure):
         """
         lattice = Lattice.from_dict(d["lattice"])
         sites = [PeriodicSite.from_dict(sd, lattice) for sd in d["sites"]]
-        s = Structure.from_sites(sites)
+        struct = Structure.from_sites(sites)
 
         return Slab(
             lattice=lattice,
-            species=s.species_and_occu,
-            coords=s.frac_coords,
+            species=struct.species_and_occu,
+            coords=struct.frac_coords,
             miller_index=d["miller_index"],
             oriented_unit_cell=Structure.from_dict(d["oriented_unit_cell"]),
             shift=d["shift"],
             scale_factor=d["scale_factor"],
-            site_properties=s.site_properties,
+            site_properties=struct.site_properties,
             energy=d["energy"],
         )
 
@@ -564,8 +557,8 @@ class Slab(Structure):
 
         # Get a dictionary of coordination numbers
         # for each distinct site in the structure
-        a = SpacegroupAnalyzer(self.oriented_unit_cell)
-        u_cell = a.get_symmetrized_structure()
+        spga = SpacegroupAnalyzer(self.oriented_unit_cell)
+        u_cell = spga.get_symmetrized_structure()
         cn_dict = {}
         voronoi_nn = VoronoiNN()
         unique_indices = [equ[0] for equ in u_cell.equivalent_indices]
@@ -706,9 +699,9 @@ class Slab(Structure):
                 if slab_copy[i2].frac_coords[2] == slab_copy[i1].frac_coords[2]:
                     continue
                 # Test site remove to see if it results in symmetric slab
-                s = self.copy()
-                s.remove_sites([i1, i2])
-                if s.is_symmetric():
+                slab = self.copy()
+                slab.remove_sites([i1, i2])
+                if slab.is_symmetric():
                     removal_list.extend([i1, i2])
                     break
 
@@ -799,7 +792,7 @@ class SlabGenerator:
             in_unit_planes (bool): Whether to set min_slab_size and min_vac_size
                 in units of hkl planes (True) or Angstrom (False/default).
                 Setting in units of planes is useful for ensuring some slabs
-                have a certain nlayer of atoms. e.g. for Cs (100), a 10 Ang
+                have a certain n_layer of atoms. e.g. for Cs (100), a 10 Ang
                 slab will result in a slab with only 2 layer of atoms, whereas
                 Fe (100) will have more layer of atoms. By using units of hkl
                 planes instead, we ensure both slabs
@@ -1068,8 +1061,7 @@ class SlabGenerator:
             else:
                 shift = (possible_c[i] + possible_c[i + 1]) * 0.5
             shifts.append(shift - math.floor(shift))
-        shifts = sorted(shifts)
-        return shifts
+        return sorted(shifts)
 
     def _get_c_ranges(self, bonds):
         c_ranges = []
@@ -1335,7 +1327,7 @@ class SlabGenerator:
 
 
 module_dir = os.path.dirname(os.path.abspath(__file__))
-with open(os.path.join(module_dir, "reconstructions_archive.json")) as data_file:
+with open(f"{module_dir}/reconstructions_archive.json") as data_file:
     reconstructions_archive = json.load(data_file)
 
 
@@ -1384,8 +1376,7 @@ class ReconstructionGenerator:
                 unit cell structure.
             min_slab_size (float): In Angstroms
             min_vacuum_size (float): In Angstroms
-
-            reconstruction (str): Name of the dict containing the instructions
+            reconstruction_name (str): Name of the dict containing the instructions
                 for building a reconstructed slab. The dictionary can contain
                 any item the creator deems relevant, however any instructions
                 archived in pymatgen for public use needs to contain the
@@ -1469,8 +1460,8 @@ class ReconstructionGenerator:
         """
         if reconstruction_name not in reconstructions_archive:
             raise KeyError(
-                f"The reconstruction_name entered ({reconstruction_name}) does not exist in the "
-                f"archive. Please select from one of the following reconstructions: {list(reconstructions_archive)} "
+                f"{reconstruction_name=} does not exist in the archive. Please select "
+                f"from one of the following reconstructions: {list(reconstructions_archive)} "
                 "or add the appropriate dictionary to the archive file "
                 "reconstructions_archive.json."
             )
@@ -1556,9 +1547,7 @@ class ReconstructionGenerator:
         return recon_slabs
 
     def get_unreconstructed_slabs(self):
-        """
-        Generates the unreconstructed or pristine super slab.
-        """
+        """Generates the unreconstructed or pristine super slab."""
         slabs = []
         for slab in SlabGenerator(**self.slabgen_params).get_slabs():
             slab.make_supercell(self.trans_matrix)
@@ -1569,7 +1558,7 @@ class ReconstructionGenerator:
 def get_d(slab):
     """
     Determine the distance of space between
-    each layer of atoms along c
+    each layer of atoms along c.
     """
     sorted_sites = sorted(slab, key=lambda site: site.frac_coords[2])
     for i, site in enumerate(sorted_sites):
@@ -1582,7 +1571,7 @@ def get_d(slab):
 def is_already_analyzed(miller_index: tuple, miller_list: list, symm_ops: list) -> bool:
     """
     Helper function to check if a given Miller index is
-    part of the family of indices of any index in a list
+    part of the family of indices of any index in a list.
 
     Args:
         miller_index (tuple): The Miller index to analyze
@@ -1599,7 +1588,8 @@ def get_symmetrically_equivalent_miller_indices(
     structure,
     miller_index,
     return_hkil=True,
-    system: Literal["triclinic", "monoclinic", "orthorhombic", "tetragonal", "trigonal", "hexagonal", "cubic"] = None,
+    system: Literal["triclinic", "monoclinic", "orthorhombic", "tetragonal", "trigonal", "hexagonal", "cubic"]
+    | None = None,
 ):
     """
     Returns all symmetrically equivalent indices for a given structure. Analysis
@@ -1675,6 +1665,10 @@ def get_symmetrically_distinct_miller_indices(structure, max_index, return_hkil=
     # First we get a list of all hkls for conventional (including equivalent)
     conv_hkl_list = [miller for miller in itertools.product(r, r, r) if any(i != 0 for i in miller)]
 
+    # Sort by the maximum of the absolute values of individual Miller indices so that
+    # low-index planes are first. This is important for trigonal systems.
+    conv_hkl_list = sorted(conv_hkl_list, key=lambda x: max(np.abs(x)))
+
     sg = SpacegroupAnalyzer(structure)
     # Get distinct hkl planes from the rhombohedral setting if trigonal
     if sg.get_crystal_system() == "trigonal":
@@ -1716,7 +1710,7 @@ def hkl_transformation(transf, miller_index):
     Args:
         transf (3x3 array): The transformation matrix
             that transforms a lattice of A to B
-        miller_index ([h, k, l]): Miller index to transform to setting B
+        miller_index ([h, k, l]): Miller index to transform to setting B.
     """
     # Get a matrix of whole numbers (ints)
 
@@ -1810,7 +1804,19 @@ def generate_all_slabs(
         repair (bool): Whether to repair terminations with broken bonds
             or just omit them
         include_reconstructions (bool): Whether to include reconstructed
-            slabs available in the reconstructions_archive.json file.
+            slabs available in the reconstructions_archive.json file. Defaults to False.
+        in_unit_planes (bool): Whether to generate slabs in units of the primitive
+            cell's c lattice vector. This is useful for generating slabs with
+            a specific number of layers, as the number of layers will be
+            independent of the Miller index. Defaults to False.
+        in_unit_planes (bool): Whether to set min_slab_size and min_vac_size
+            in units of hkl planes (True) or Angstrom (False, the default). Setting in
+            units of planes is useful for ensuring some slabs have a certain n_layer of
+            atoms. e.g. for Cs (100), a 10 Ang slab will result in a slab with only 2
+            layer of atoms, whereas Fe (100) will have more layer of atoms. By using units
+            of hkl planes instead, we ensure both slabs have the same number of atoms. The
+            slab thickness will be in min_slab_size/math.ceil(self._proj_height/dhkl)
+            multiples of oriented unit cells.
     """
     all_slabs = []
 
@@ -1866,7 +1872,7 @@ def get_slab_regions(slab, blength=3.5):
         slab (Structure): Structure object modelling the surface
         blength (float, Ang): The bondlength between atoms. You generally
             want this value to be larger than the actual bondlengths in
-            order to find atoms that are part of the slab
+            order to find atoms that are part of the slab.
     """
     fcoords, indices, all_indices = [], [], []
     for site in slab:
@@ -2002,6 +2008,4 @@ def _reduce_vector(vector):
     # small function to reduce vectors
 
     d = abs(reduce(gcd, vector))
-    vector = tuple(int(i / d) for i in vector)
-
-    return vector
+    return tuple(int(i / d) for i in vector)

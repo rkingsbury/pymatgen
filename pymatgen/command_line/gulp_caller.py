@@ -1,6 +1,3 @@
-# Copyright (c) Pymatgen Development Team.
-# Distributed under the terms of the MIT License.
-
 """
 Interface with command line GULP.
 http://projects.ivec.org
@@ -182,7 +179,7 @@ _gulp_kw = {
     "nomolecularinternalke",
     "voight",
     "zsisa",
-    # Optimisation method
+    # Optimization method
     "conjugate",
     "dfp",
     "lbfgs",
@@ -207,7 +204,6 @@ _gulp_kw = {
     "meanke",
     "nodensity_out",
     "nodpsym",
-    "nofirst_point",
     "nofrequency",
     "nokpoints",
     "operators",
@@ -220,8 +216,6 @@ _gulp_kw = {
     "save",
     "terse",
     # Structure control
-    "full",
-    "hexagonal",
     "lower_symmetry",
     "nosymmetry",
     # PDF control
@@ -240,9 +234,7 @@ _gulp_kw = {
 
 
 class GulpIO:
-    """
-    To generate GULP input and process output
-    """
+    """To generate GULP input and process output."""
 
     @staticmethod
     def keyword_line(*args):
@@ -274,7 +266,7 @@ class GulpIO:
         Args:
             structure: pymatgen Structure object
             cell_flg (default = True): Option to use lattice parameters.
-            fractional_flg (default = True): If True, fractional coordinates
+            frac_flg (default = True): If True, fractional coordinates
                 are used. Else, Cartesian coordinates in Angstroms are used.
                 ******
                 GULP convention is to use fractional coordinates for periodic
@@ -302,12 +294,12 @@ class GulpIO:
 
         if frac_flg:
             gin += "frac\n"
-            coord_attr = "frac_coords"
+            coords_key = "frac_coords"
         else:
             gin += "cart\n"
-            coord_attr = "coords"
-        for site in structure.sites:
-            coord = [str(i) for i in getattr(site, coord_attr)]
+            coords_key = "coords"
+        for site in structure:
+            coord = [str(i) for i in getattr(site, coords_key)]
             specie = site.specie
             core_site_desc = specie.symbol + " core " + " ".join(coord) + "\n"
             gin += core_site_desc
@@ -381,7 +373,7 @@ class GulpIO:
                     gin = "library " + file_name
         if gin:
             return gin + "\n"
-        raise GulpError("GULP Library not found")
+        raise GulpError("GULP library not found")
 
     def buckingham_input(self, structure: Structure, keywords, library=None, uc=True, valence_dict=None):
         """
@@ -453,7 +445,7 @@ class GulpIO:
             # Try lewis library next if element is not in bush
             # use_lewis = True
             if el != "O":  # For metals the key is "Metal_OxiState+"
-                k = el + "_" + str(int(val_dict[key])) + "+"
+                k = f"{el}_{int(val_dict[key])}+"
                 if k not in bpl.species_dict:
                     # use_lewis = False
                     raise GulpError(f"Element {k} not in library")
@@ -475,7 +467,7 @@ class GulpIO:
 
     def tersoff_input(self, structure: Structure, periodic=False, uc=True, *keywords):
         """
-        Gets a GULP input with Tersoff potential for an oxide structure
+        Gets a GULP input with Tersoff potential for an oxide structure.
 
         Args:
             structure: pymatgen.core.structure.Structure
@@ -501,7 +493,7 @@ class GulpIO:
     @staticmethod
     def tersoff_potential(structure):
         """
-        Generate the species, tersoff potential lines for an oxide structure
+        Generate the species, Tersoff potential lines for an oxide structure.
 
         Args:
             structure: pymatgen.core.structure.Structure
@@ -512,31 +504,31 @@ class GulpIO:
         el_val_dict = dict(zip(el, valences))
 
         gin = "species \n"
-        qerfstring = "qerfc\n"
+        qerf_str = "qerfc\n"
 
         for key, value in el_val_dict.items():
             if key != "O" and value % 1 != 0:
                 raise SystemError("Oxide has mixed valence on metal")
-            specie_string = key + " core " + str(value) + "\n"
-            gin += specie_string
-            qerfstring += key + " " + key + " 0.6000 10.0000 \n"
+            specie_str = f"{key} core {value}\n"
+            gin += specie_str
+            qerf_str += f"{key} {key} 0.6000 10.0000 \n"
 
         gin += "# noelectrostatics \n Morse \n"
         met_oxi_ters = TersoffPotential().data
         for key, value in el_val_dict.items():
             if key != "O":
-                metal = key + "(" + str(int(value)) + ")"
+                metal = f"{key}({int(value)})"
                 ters_pot_str = met_oxi_ters[metal]
                 gin += ters_pot_str
 
-        gin += qerfstring
+        gin += qerf_str
         return gin
 
     @staticmethod
-    def get_energy(gout):
+    def get_energy(gout: str):
         """
         Args:
-            gout ():
+            gout (str): GULP output string.
 
         Returns:
             Energy
@@ -550,10 +542,10 @@ class GulpIO:
         raise GulpError("Energy not found in Gulp output")
 
     @staticmethod
-    def get_relaxed_structure(gout):
+    def get_relaxed_structure(gout: str):
         """
         Args:
-            gout ():
+            gout (str): GULP output string.
 
         Returns:
             (Structure) relaxed structure.
@@ -642,13 +634,11 @@ class GulpIO:
 
 
 class GulpCaller:
-    """
-    Class to run gulp from commandline
-    """
+    """Class to run gulp from commandline."""
 
     def __init__(self, cmd="gulp"):
         """
-        Initialize with the executable if not in the standard path
+        Initialize with the executable if not in the standard path.
 
         Args:
             cmd: Command. Defaults to gulp.
@@ -673,7 +663,7 @@ class GulpCaller:
 
     def run(self, gin):
         """
-        Run GULP using the gin as input
+        Run GULP using the gin as input.
 
         Args:
             gin: GULP input string
@@ -706,10 +696,10 @@ class GulpCaller:
             if "ERROR" in out:
                 raise GulpError(out)
 
-            # Sometimes optimisation may fail to reach convergence
+            # Sometimes optimization may fail to reach convergence
             conv_err_string = "Conditions for a minimum have not been satisfied"
             if conv_err_string in out:
-                raise GulpConvergenceError()
+                raise GulpConvergenceError(out)
 
             gout = ""
             for line in out.split("\n"):
@@ -773,13 +763,13 @@ def get_energy_relax_structure_buckingham(structure, gulp_cmd="gulp", keywords=(
 class GulpError(Exception):
     """
     Exception class for GULP.
-    Raised when the GULP gives an error
+    Raised when the GULP gives an error.
     """
 
     def __init__(self, msg):
         """
         Args:
-            msg (str): Message
+            msg (str): Message.
         """
         self.msg = msg
 
@@ -791,13 +781,13 @@ class GulpConvergenceError(Exception):
     """
     Exception class for GULP.
     Raised when proper convergence is not reached in Mott-Littleton
-    defect energy optimisation procedure in GULP
+    defect energy optimization procedure in GULP.
     """
 
     def __init__(self, msg=""):
         """
         Args:
-            msg (str): Message
+            msg (str): Message.
         """
         self.msg = msg
 
@@ -886,16 +876,12 @@ class BuckinghamPotential:
 
 
 class TersoffPotential:
-    """
-    Generate Tersoff Potential Table from "OxideTersoffPotentialentials" file
-    """
+    """Generate Tersoff Potential Table from "OxideTersoffPotentialentials" file."""
 
     def __init__(self):
-        """
-        Init TersoffPotential
-        """
+        """Init TersoffPotential."""
         module_dir = os.path.dirname(os.path.abspath(__file__))
-        with open(os.path.join(module_dir, "OxideTersoffPotentials")) as f:
+        with open(f"{module_dir}/OxideTersoffPotentials") as f:
             data = {}
             for row in f:
                 metaloxi = row.split()[0]

@@ -1,16 +1,10 @@
-# Copyright (c) Pymatgen Development Team.
-# Distributed under the terms of the MIT License.
-
-"""
-Classes for reading/manipulating/writing QChem input files.
-"""
+"""Classes for reading/manipulating/writing QChem input files."""
 
 from __future__ import annotations
 
 import logging
 import re
-from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from monty.io import zopen
 
@@ -18,6 +12,9 @@ from pymatgen.core import Molecule
 from pymatgen.io.core import InputFile
 
 from .utils import lower_and_check_unique, read_pattern, read_table_pattern
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 __author__ = "Brandon Wood, Samuel Blau, Shyam Dwaraknath, Julian Self, Evan Spotte-Smith, Ryan Kingsbury"
 __copyright__ = "Copyright 2018-2022, The Materials Project"
@@ -206,9 +203,7 @@ class QCInput(InputFile):
         #   - Check OPT and PCM sections?
 
     def get_string(self):
-        """
-        Return a string representation of an entire input file.
-        """
+        """Return a string representation of an entire input file."""
         return str(self)
 
     def __str__(self):
@@ -275,7 +270,7 @@ class QCInput(InputFile):
     def multi_job_string(job_list: list[QCInput]) -> str:
         """
         Args:
-            job_list (): List of jobs
+            job_list (): List of jobs.
 
         Returns:
             (str) String representation of multi job input file.
@@ -289,7 +284,7 @@ class QCInput(InputFile):
         return multi_job_string
 
     @classmethod
-    def from_string(cls, string: str) -> QCInput:
+    def from_str(cls, string: str) -> QCInput:
         """
         Read QcInput from string.
 
@@ -303,20 +298,9 @@ class QCInput(InputFile):
         molecule = cls.read_molecule(string)
         rem = cls.read_rem(string)
         # only molecule and rem are necessary everything else is checked
-        opt = None
-        pcm = None
-        solvent = None
-        smx = None
-        scan = None
-        vdw = None
+        opt = pcm = solvent = smx = scan = vdw = None
         vdw_mode = "atomic"
-        plots = None
-        nbo = None
-        geom_opt = None
-        cdft = None
-        almo_coupling = None
-        svp = None
-        pcm_nonels = None
+        plots = nbo = geom_opt = cdft = almo_coupling = svp = pcm_nonels = None
         if "opt" in sections:
             opt = cls.read_opt(string)
         if "pcm" in sections:
@@ -386,7 +370,7 @@ class QCInput(InputFile):
             QcInput
         """
         with zopen(filename, "rt") as f:
-            return QCInput.from_string(f.read())
+            return QCInput.from_str(f.read())
 
     @classmethod
     def from_multi_jobs_file(cls, filename: str) -> list[QCInput]:
@@ -403,14 +387,13 @@ class QCInput(InputFile):
             # the delimiter between QChem jobs is @@@
             multi_job_strings = f.read().split("@@@")
             # list of individual QChem jobs
-            input_list = [cls.from_string(i) for i in multi_job_strings]
-            return input_list
+            return [cls.from_str(i) for i in multi_job_strings]
 
     @staticmethod
     def molecule_template(molecule: Molecule | list[Molecule] | Literal["read"]) -> str:
         """
         Args:
-            molecule (Molecule, list of Molecules, or "read")
+            molecule (Molecule, list of Molecules, or "read").
 
         Returns:
             (str) Molecule template.
@@ -554,7 +537,7 @@ class QCInput(InputFile):
         """
         Args:
             scan (dict): Dictionary with scan section information.
-                Ex: {"stre": ["3 6 1.5 1.9 0.1"], "tors": ["1 2 3 4 -180 180 15"]}
+                Ex: {"stre": ["3 6 1.5 1.9 0.1"], "tors": ["1 2 3 4 -180 180 15"]}.
 
         Returns:
             String representing Q-Chem input format for scan section
@@ -583,7 +566,7 @@ class QCInput(InputFile):
                 represent the atomic number associated with each radius (e.g., '12' = carbon).
                 In 'sequential' mode, dict keys represent the sequential position of
                 a single specific atom in the input structure.
-                **NOTE: keys must be given as strings even though they are numbers!**
+                **NOTE: keys must be given as strings even though they are numbers!**.
 
         Returns:
             String representing Q-Chem input format for van_der_waals section
@@ -595,7 +578,7 @@ class QCInput(InputFile):
         elif mode == "sequential":
             vdw_list.append("2")
         else:
-            raise ValueError(f"Invalid value {mode} given for 'mode' kwarg.")
+            raise ValueError(f"Invalid {mode=}, must be 'atomic' or 'sequential'")
 
         for num, radius in radii.items():
             vdw_list.append(f"   {num} {radius}")
@@ -675,7 +658,7 @@ class QCInput(InputFile):
     def cdft_template(cdft: list[list[dict]]) -> str:
         """
         Args:
-            cdft: list of lists of dicts
+            cdft: list of lists of dicts.
 
         Returns:
             (str)
@@ -717,7 +700,7 @@ class QCInput(InputFile):
     def almo_template(almo_coupling: list[list[tuple[int, int]]]) -> str:
         """
         Args:
-            almo: list of lists of int 2-tuples
+            almo: list of lists of int 2-tuples.
 
         Returns:
             (str)
@@ -810,8 +793,7 @@ class QCInput(InputFile):
         Returns:
             Molecule
         """
-        charge = None
-        spin_mult = None
+        charge = spin_mult = None
         patterns = {
             "read": r"^\s*\$molecule\n\s*(read)",
             "charge": r"^\s*\$molecule\n\s*((?:\-)*\d+)\s+\d+",
@@ -839,26 +821,26 @@ class QCInput(InputFile):
             else:
                 mol = Molecule(species=species, coords=coords, charge=charge, spin_multiplicity=spin_mult)
             return mol
-        else:
-            header = r"\s*(?:\-)*\d+\s+(?:\-)*\d+"
-            row = r"\s*([A-Za-z]+)\s+([\d\-\.]+)\s+([\d\-\.]+)\s+([\d\-\.]+)"
-            footer = r"(:?(:?\-\-)|(:?\$end))"
 
-            molecules = []
+        header = r"\s*(?:\-)*\d+\s+(?:\-)*\d+"
+        row = r"\s*([A-Za-z]+)\s+([\d\-\.]+)\s+([\d\-\.]+)\s+([\d\-\.]+)"
+        footer = r"(:?(:?\-\-)|(:?\$end))"
 
-            patterns = {"charge_spin": r"\s*\-\-\s*([\-0-9]+)\s+([\-0-9]+)"}
-            matches = read_pattern(string, patterns)
+        molecules = []
 
-            mol_table = read_table_pattern(string, header_pattern=header, row_pattern=row, footer_pattern=footer)
-            for match, table in zip(matches.get("charge_spin"), mol_table):
-                charge = int(match[0])
-                spin = int(match[1])
-                species = [val[0] for val in table]
-                coords = [[float(val[1]), float(val[2]), float(val[3])] for val in table]
-                mol = Molecule(species=species, coords=coords, charge=charge, spin_multiplicity=spin)
-                molecules.append(mol)
+        patterns = {"charge_spin": r"\s*\-\-\s*([\-0-9]+)\s+([\-0-9]+)"}
+        matches = read_pattern(string, patterns)
 
-            return molecules
+        mol_table = read_table_pattern(string, header_pattern=header, row_pattern=row, footer_pattern=footer)
+        for match, table in zip(matches.get("charge_spin"), mol_table):
+            charge = int(match[0])
+            spin = int(match[1])
+            species = [val[0] for val in table]
+            coords = [[float(val[1]), float(val[2]), float(val[3])] for val in table]
+            mol = Molecule(species=species, coords=coords, charge=charge, spin_multiplicity=spin)
+            molecules.append(mol)
+
+        return molecules
 
     @staticmethod
     def read_rem(string: str) -> dict:
@@ -1233,9 +1215,7 @@ class QCInput(InputFile):
 
     @staticmethod
     def read_svp(string: str) -> dict:
-        """
-        Read svp parameters from string.
-        """
+        """Read svp parameters from string."""
         header = r"^\s*\$svp"
         row = r"(\w.*)\n"
         footer = r"^\s*\$end"

@@ -1,12 +1,11 @@
-# Copyright (c) Pymatgen Development Team.
-# Distributed under the terms of the MIT License.
+"""Pymatgen package configuration."""
 
 from __future__ import annotations
 
 import platform
 import sys
 
-import numpy
+import numpy as np
 from setuptools import Extension, find_namespace_packages, setup
 
 is_win_64 = sys.platform.startswith("win") and platform.machine().endswith("64")
@@ -17,7 +16,7 @@ with open("README.md") as file:
 
 # unlike GitHub readme's, PyPI doesn't support <picture> tags used for responsive images
 # (i.e. adaptive to OS light/dark mode)
-# TODO this manual fix won't work once we migrate to pyproject.toml
+# NOTE this manual fix won't work once we migrate to pyproject.toml
 logo_url = "https://raw.githubusercontent.com/materialsproject/pymatgen/master/docs/_images/pymatgen.svg"
 long_description = (
     f"<h1 align='center'><img alt='Logo' src='{logo_url}' height='70'></h1>" + long_description.split("</picture>")[-1]
@@ -29,7 +28,7 @@ setup(
         include=["pymatgen.*", "pymatgen.analysis.*", "pymatgen.io.*", "pymatgen.ext.*", "cmd_line"],
         exclude=["pymatgen.*.tests", "pymatgen.*.*.tests", "pymatgen.*.*.*.tests"],
     ),
-    version="2023.2.28",
+    version="2023.7.20",
     python_requires=">=3.8",
     install_requires=[
         "matplotlib>=1.5",
@@ -41,6 +40,8 @@ setup(
         "pandas",
         "plotly>=4.5.0",
         "pybtex",
+        # TODO remove after https://github.com/materialsproject/emmet/issues/768 is fixed
+        "pydantic<2.0.0",
         "requests",
         "ruamel.yaml>=0.17.0",
         "scipy>=1.5.0",
@@ -49,12 +50,14 @@ setup(
         "tabulate",
         "tqdm",
         "uncertainties>=3.1.4",
+        "joblib",
     ],
     extras_require={
         "ase": ["ase>=3.3"],
+        "tblite": ["tblite[ase]>=0.3.0"],
         "vis": ["vtk>=6.0.0"],
         "abinit": ["netcdf4"],
-        "relaxation": ["m3gnet"],
+        "relaxation": ["matgl", "chgnet"],
         "electronic_structure": ["fdint>=2.0.2"],
         "dev": [
             "black",
@@ -71,19 +74,22 @@ setup(
             "doc2dash",
         ],
         "optional": [
-            # "hiphive>=0.6",
-            # "m3gnet>=0.0.8",
             "ase>=3.22.1",
             # https://peps.python.org/pep-0508/#environment-markers
             "BoltzTraP2>=22.3.2; platform_system!='Windows'",
             "chemview>=0.6",
+            "chgnet",
             "f90nml>=1.1.2",
             "galore>=0.6.1",
             "h5py>=3.8.0",
             "jarvis-tools>=2020.7.14",
+            "matgl",
             "netCDF4>=1.5.8",
             "phonopy>=2.4.2",
             "seekpath>=1.9.4",
+            "tblite[ase]>=0.3.0; platform_system=='Linux'",
+            # "hiphive>=0.6",
+            # "openbabel>=3.1.1; platform_system=='Linux'",
         ],
         "numba": [
             "numba",
@@ -111,14 +117,14 @@ setup(
         "pymatgen.command_line": ["*"],
         "pymatgen.util": ["structures/*.json", "*.json"],
         "pymatgen.vis": ["*.yaml"],
-        "pymatgen.io.lammps": ["CoeffsDataType.yaml", "templates/md.txt"],
+        "pymatgen.io.lammps": ["CoeffsDataType.yaml", "templates/*.template"],
         "pymatgen.symmetry": ["*.yaml", "*.json", "*.sqlite"],
         "cmd_line": ["**/*"],
     },
     author="Pymatgen Development Team",
-    author_email="ongsp@eng.ucsd.edu",
+    author_email="ongsp@ucsd.edu",
     maintainer="Shyue Ping Ong, Matthew Horton, Janosh Riebesell",
-    maintainer_email="ongsp@eng.ucsd.edu, mkhorton@lbl.gov, janosh.riebesell@gmail.com",
+    maintainer_email="ongsp@ucsd.edu, mkhorton@lbl.gov, janosh.riebesell@gmail.com",
     url="https://pymatgen.org",
     license="MIT",
     project_urls={
@@ -181,9 +187,8 @@ setup(
             "pmg = pymatgen.cli.pmg:main",
             "feff_plot_cross_section = pymatgen.cli.feff_plot_cross_section:main",
             "feff_plot_dos = pymatgen.cli.feff_plot_dos:main",
-            "gaussian_analyzer = pymatgen.cli.gaussian_analyzer:main",
             "get_environment = pymatgen.cli.get_environment:main",
         ]
     },
-    include_dirs=[numpy.get_include()],
+    include_dirs=[np.get_include()],
 )

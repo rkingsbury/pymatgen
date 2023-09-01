@@ -20,14 +20,7 @@ from pymatgen.core.composition import Composition
 from pymatgen.core.lattice import Lattice
 from pymatgen.core.operations import SymmOp
 from pymatgen.core.periodic_table import Element, Species
-from pymatgen.core.structure import (
-    IMolecule,
-    IStructure,
-    Molecule,
-    PeriodicNeighbor,
-    Structure,
-    StructureError,
-)
+from pymatgen.core.structure import IMolecule, IStructure, Molecule, PeriodicNeighbor, Structure, StructureError
 from pymatgen.electronic_structure.core import Magmom
 from pymatgen.util.testing import PymatgenTest
 
@@ -479,7 +472,7 @@ class IStructureTest(PymatgenTest):
         assert len(sprim) == 6
 
     def test_get_miller_index(self):
-        """Test for get miller index convenience method"""
+        """Test for get miller index convenience method."""
         struct = Structure(
             [2.319, -4.01662582, 0.0, 2.319, 4.01662582, 0.0, 0.0, 0.0, 7.252],
             ["Sn", "Sn", "Sn"],
