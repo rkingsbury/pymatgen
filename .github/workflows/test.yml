@@ -67,7 +67,7 @@ jobs:
       PMG_VASP_PSP_DIR: ${{ github.workspace }}/tests/files
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
@@ -135,7 +135,7 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Download coverage artifacts
         uses: actions/download-artifact@v3
       - name: Combine coverage
@@ -155,7 +155,7 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions/setup-python@v4
         name: Install Python
         with:
@@ -178,7 +178,7 @@ jobs:
         python-version: ["38", "39", "310", "311"]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.14.1
         env:
